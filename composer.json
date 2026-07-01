@@ -1,0 +1,13 @@
+{
+	"name": "automattic/wpcom-playground",
+	"description": "Import a Playground backup into a WordPress.com site.",
+	"type": "wordpress-plugin",
+	"license": "GPL-2.0-or-later",
+	"require-dev": {
+		"phpunit/phpunit": "^9.6",
+		"yoast/phpunit-polyfills": "^4.0"
+	},
+	"scripts": {
+		"test": "phpunit -c phpunit.xml.dist"
+	}
+}
