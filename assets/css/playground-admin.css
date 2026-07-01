@@ -10,6 +10,7 @@
 .wpcom-playground-admin__toolbar {
 	align-items: center;
 	border-bottom: 1px solid #dcdcde;
+	gap: 12px;
 	display: flex;
 	min-height: 44px;
 	padding: 0 16px;
@@ -19,6 +20,7 @@
 	color: #50575e;
 	font-size: 13px;
 	margin: 0;
+	flex: 1;
 }
 
 .wpcom-playground-admin__status[data-state="ready"] {
@@ -27,6 +29,10 @@
 
 .wpcom-playground-admin__status[data-state="error"] {
 	color: #b32d2e;
+}
+
+.wpcom-playground-admin__result {
+	margin-left: auto;
 }
 
 .wpcom-playground-admin__iframe {
