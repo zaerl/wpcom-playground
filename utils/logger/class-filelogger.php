@@ -5,11 +5,11 @@
  * @package wpcom-playground
  */
 
-namespace Imports\Utils\Logger;
+namespace WPCom\Playground\Utils\Logger;
 
 require_once __DIR__ . '/class-logger-interface.php';
 
-use Imports\Utils\LoggerInterface;
+use WPCom\Playground\Utils\LoggerInterface;
 
 /**
  * Class FileLogger

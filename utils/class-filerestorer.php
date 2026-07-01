@@ -21,7 +21,7 @@ use WP_Error;
  * to a destination directory. It uses a queue to manage the files to be
  * restored, and it can optionally log its operations.
  */
-class FileRestorer extends \Imports\Backup_Import_Action {
+class FileRestorer extends \WPCom\Playground\Backup_Import_Action {
 	/**
 	 * The source directory from which files will be restored.
 	 *
