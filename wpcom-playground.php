@@ -1,5 +1,5 @@
 <?php
-/*
+/**
  * @wordpress-plugin
  * Plugin Name:       WordPress.com Playground Importer
  * Description:       Import a Playground backup into a WordPress.com site.

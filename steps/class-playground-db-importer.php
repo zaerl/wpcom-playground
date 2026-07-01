@@ -320,7 +320,7 @@ class Playground_DB_Importer extends Backup_Import_Action {
 
 		$mysql_map = array();
 
-		// Schema: COLUMN_NAME|COLUMN_TYPE
+		// Schema: COLUMN_NAME|COLUMN_TYPE.
 		while ( $column = $results->fetchArray( SQLITE3_ASSOC ) ) { // phpcs:ignore Generic.CodeAnalysis.AssignmentInCondition.FoundInWhileCondition
 			// Map by column name and MySQL type.
 			$mysql_map[ $column['COLUMN_NAME'] ] = $column['COLUMN_TYPE'];
@@ -354,7 +354,7 @@ class Playground_DB_Importer extends Backup_Import_Action {
 		$formats     = array();
 		$field_names = array();
 
-		// Schema: cid|name|type|notnull|dflt_value|pk
+		// Schema: cid|name|type|notnull|dflt_value|pk.
 		while ( $column = $results->fetchArray( SQLITE3_ASSOC ) ) { // phpcs:ignore Generic.CodeAnalysis.AssignmentInCondition.FoundInWhileCondition
 			$is_primary    = $column['pk'] >= 1;
 			$field_names[] = $column['name'];
@@ -405,15 +405,15 @@ class Playground_DB_Importer extends Backup_Import_Action {
 		}
 
 		// Loop all indices.
-		// Schema: name|sql
+		// Schema: name|sql.
 		while ( $column = $results->fetchArray( SQLITE3_ASSOC ) ) { // phpcs:ignore Generic.CodeAnalysis.AssignmentInCondition.FoundInWhileCondition
-			// Some SQLite columns are not indexed. See https://sqlite.org/forum/info/f16f8ed8666c5e97
+			// Some SQLite columns are not indexed. See https://sqlite.org/forum/info/f16f8ed8666c5e97.
 			if ( $column['sql'] === null ) {
 				continue;
 			}
 
 			// Strip out the index definition.
-			// wp_comments__comment_approved_date_gmt|CREATE INDEX "wp_comments__comment_approved_date_gmt" ON "wp_comments" ("comment_approved", "comment_date_gmt")
+			// wp_comments__comment_approved_date_gmt|CREATE INDEX "wp_comments__comment_approved_date_gmt" ON "wp_comments" ("comment_approved", "comment_date_gmt").
 			$split_query = explode( '` ON `' . $table_name . '` ', $column['sql'] );
 			$real_name   = SQL_Generator::get_index_name( $column['name'] );
 			$new_index   = array(
