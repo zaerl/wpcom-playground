@@ -7,6 +7,10 @@
 
 use Imports\Playground_DB_Importer;
 
+// These tests intentionally use temporary file handles instead of WP_Filesystem.
+// phpcs:disable WordPress.WP.AlternativeFunctions.file_system_operations_fclose
+// phpcs:disable WordPress.WP.AlternativeFunctions.file_system_operations_fwrite
+
 /**
  * Class PlaygroundDBImporterTest.
  */
@@ -129,6 +133,9 @@ class PlaygroundDBImporterTest extends WP_UnitTestCase {
 		$this->assertStringContainsString( 'CREATE TABLE `posts`', $result );
 	}
 
+	/**
+	 * Test hot-fixing missing index lengths.
+	 */
 	public function test_hot_fix_missing_indexes() {
 		$map = $this->db_importer->hot_fix_missing_indexes( 'wp_options', array() );
 		$this->assertEquals( array(), $map );
@@ -155,6 +162,9 @@ class PlaygroundDBImporterTest extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * Test valid table detection.
+	 */
 	public function test_is_valid_table() {
 		$this->assertFalse( $this->db_importer->is_valid_table( '_wp_sqlite_mysql_information_schema_columns' ) );
 		$this->assertFalse( $this->db_importer->is_valid_table( '_wp_sqlite_global_variables' ) );
@@ -162,6 +172,9 @@ class PlaygroundDBImporterTest extends WP_UnitTestCase {
 		$this->assertTrue( $this->db_importer->is_valid_table( 'wp_options' ) );
 	}
 
+	/**
+	 * Test whether text indexes need a 191-character length.
+	 */
 	public function test_get_needs_191_limit_test_cases() {
 		$this->assertTrue(
 			$this->db_importer->needs_191_limit(
@@ -197,10 +210,16 @@ class PlaygroundDBImporterTest extends WP_UnitTestCase {
 		);
 	}
 
+	/**
+	 * Test temporary SQL file name generation.
+	 */
 	public function test_get_tmp_file_name() {
 		$this->assertIsString( $this->db_importer->get_tmp_file_name() );
 	}
 
+	/**
+	 * Test SQLite type to SQL placeholder format conversion.
+	 */
 	public function test_sqlite_type_to_format() {
 		$this->assertEquals( '%d', $this->db_importer->sqlite_type_to_format( 'integer' ) );
 		$this->assertEquals( '%f', $this->db_importer->sqlite_type_to_format( 'real' ) );

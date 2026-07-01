@@ -93,7 +93,7 @@ function wpcom_playground_tests_alias_import_classes(): void {
  */
 function wpcom_playground_tests_load_plugin(): void {
 	require_once WPCOM_PLAYGROUND_TESTS_PLUGIN_DIR . '/wpcom-playground.php';
-	require_once WPCOM_PLAYGROUND_TESTS_PLUGIN_DIR . '/tests/stubs/jetpack-connection-manager.php';
+	require_once WPCOM_PLAYGROUND_TESTS_PLUGIN_DIR . '/tests/stubs/class-manager.php';
 	wpcom_playground_tests_require_import_files();
 	wpcom_playground_tests_alias_import_classes();
 }

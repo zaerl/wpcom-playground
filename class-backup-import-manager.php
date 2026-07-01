@@ -143,11 +143,11 @@ class Backup_Import_Manager {
 			$bump_stats = $this->options['bump_stats'];
 		}
 
-		// check if there are import process that's already running
+		// Check if there are import process that's already running.
 		$check_bail_result = $this->should_bail_out();
 
 		if ( is_wp_error( $check_bail_result ) ) {
-			// We don't update status to failed here, because we don't want to overwrite the status
+			// We don't update status to failed here, because we don't want to overwrite the status.
 
 			if ( $bump_stats ) {
 				$this->bump_import_stats( $check_bail_result->get_error_code() );
@@ -156,10 +156,10 @@ class Backup_Import_Manager {
 			return $check_bail_result;
 		}
 
-		// Reset the import status before everything starts
+		// Reset the import status before everything starts.
 		self::delete_backup_import_status();
 
-		// Unzip/untar the file
+		// Unzip/untar the file.
 		if ( ! $skip_unpack ) {
 			$this->update_status( array( 'status' => 'unpack_file' ) );
 			$result = Utils\FileExtractor::extract( $this->zip_or_tar_file_path, $this->destination_path );
@@ -175,7 +175,7 @@ class Backup_Import_Manager {
 			}
 		}
 
-		// validate the type of the file
+		// Validate the type of the file.
 		$importer_type = self::determine_importer_type( $this->destination_path );
 		if ( is_wp_error( $importer_type ) ) {
 			$this->update_status( array( 'status' => self::FAILED ) );
@@ -187,7 +187,7 @@ class Backup_Import_Manager {
 			return $importer_type;
 		}
 
-		// get the importer
+		// Get the importer.
 		$importer = self::get_importer( $importer_type, $this->zip_or_tar_file_path, $this->destination_path );
 		if ( is_wp_error( $importer ) ) {
 			$this->update_status( array( 'status' => self::FAILED ) );
@@ -289,19 +289,7 @@ class Backup_Import_Manager {
 			return true;
 		}
 
-		// Bumping at the same time the status and the type.
-		/*$query_args = array(
-			'x_backup-import'      => $status,
-			'x_backup-import-type' => null === $this->importer_type ? 'unknown' : $this->importer_type,
-			'v'                    => 'wpcom-no-pv',
-		);
-
-		$stats_track_url = 'http://pixel.wp.com/b.gif?' . http_build_query( $query_args );
-		$result          = wp_remote_get( $stats_track_url );
-
-		if ( is_wp_error( $result ) ) {
-			return $result;
-		}*/
+		do_action( 'wpcom_playground_backup_import_stats', $status, $this->importer_type );
 
 		return true;
 	}
@@ -352,11 +340,11 @@ class Backup_Import_Manager {
 		$import_in_progress         = false;
 
 		if ( ! empty( $import_status ) ) {
-			// check if the status is one of other status
+			// Check if the status is one of other status.
 			if ( in_array( $import_status['status'], $additional_status_to_check, true ) ) {
 				$import_in_progress = true;
 			}
-			// check if the status is one of the actions
+			// Check if the status is one of the actions.
 			if ( in_array( $import_status['status'], $this->importer_actions, true ) ) {
 				$import_in_progress = true;
 			}
@@ -381,10 +369,10 @@ class Backup_Import_Manager {
 		}
 
 		if ( $backup_import_status['status'] === self::SUCCESS || $backup_import_status['status'] === self::FAILED ) {
-			// if it's a success or failed, we can delete the option directly
+			// If it's a success or failed, we can delete the option directly.
 			self::delete_backup_import_status();
 		} else {
-			// Otherwise we set the status to cancelled and update the option
+			// Otherwise we set the status to cancelled and update the option.
 			update_option(
 				self::$backup_import_status_option,
 				array(

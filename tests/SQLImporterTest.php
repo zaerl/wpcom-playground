@@ -7,6 +7,10 @@
 
 use Imports\SQL_Importer;
 
+// These tests intentionally use temporary file handles instead of WP_Filesystem.
+// phpcs:disable WordPress.WP.AlternativeFunctions.file_system_operations_fclose
+// phpcs:disable WordPress.WP.AlternativeFunctions.file_system_operations_fwrite
+
 /**
  * Class SQLImporterTest.
  */
