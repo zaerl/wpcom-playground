@@ -10,7 +10,7 @@ namespace WPCom\Playground;
 require_once __DIR__ . '/../utils/class-filerestorer.php';
 require_once __DIR__ . '/../class-backup-import-action.php';
 
-use Imports\Utils\FileRestorer;
+use WPCom\Playground\Utils\FileRestorer;
 
 /**
  * Class Playground_Site_Integrity_Check
