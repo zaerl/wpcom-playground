@@ -8,6 +8,7 @@
 namespace WPCom\Playground;
 
 require_once __DIR__ . '/class-backup-importer.php';
+require_once __DIR__ . '/class-backup-import-action.php';
 require_once __DIR__ . '/steps/class-playground-clean-up.php';
 require_once __DIR__ . '/steps/class-playground-db-importer.php';
 require_once __DIR__ . '/steps/class-playground-site-integrity-check.php';
@@ -16,44 +17,16 @@ require_once __DIR__ . '/steps/class-sql-postprocessor.php';
 require_once __DIR__ . '/utils/class-filerestorer.php';
 require_once __DIR__ . '/utils/logger/class-filelogger.php';
 
-use Imports\Utils\FileRestorer;
-use Imports\Utils\Logger\FileLogger;
+use WPCom\Playground\Utils\FileRestorer;
+use WPCom\Playground\Utils\Logger\FileLogger;
 
 /**
  * Playground backup importer.
  *
  * This class provides a common interface for all backup importers.
  */
-class Playground_Importer {
+class Playground_Importer extends Backup_Importer {
 	const SQLITE_DB_PATH = 'wp-content/database/.ht.sqlite';
-
-	/**
-	 * The path to the ZIP or TAR file to be imported.
-	 *
-	 * @var string
-	 */
-	protected $zip_or_tar_file_path;
-
-	/**
-	 * The path where the backup will be imported.
-	 *
-	 * @var string
-	 */
-	protected $destination_path;
-
-	/**
-	 * The table prefix to use when generating database temporary tables.
-	 *
-	 * @var string
-	 */
-	protected $tmp_prefix;
-
-	/**
-	 * The temporary database name.
-	 *
-	 * @var string
-	 */
-	protected $tmp_database;
 
 	/**
 	 * File logger
@@ -70,9 +43,7 @@ class Playground_Importer {
 	 * @param string $tmp_prefix       The table prefix to use when importing the database.
 	 */
 	public function __construct( string $zip_or_tar_file_path, string $destination_path, string $tmp_prefix ) {
-		$this->zip_or_tar_file_path = $zip_or_tar_file_path;
-		$this->destination_path     = trailingslashit( $destination_path );
-		$this->tmp_prefix           = $tmp_prefix;
+		parent::__construct( $zip_or_tar_file_path, $destination_path, $tmp_prefix );
 
 		$this->logger = new FileLogger();
 		$this->logger->check_and_clear_file();
