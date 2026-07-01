@@ -4,10 +4,19 @@
 	"type": "wordpress-plugin",
 	"license": "GPL-2.0-or-later",
 	"require-dev": {
+		"dealerdirect/phpcodesniffer-composer-installer": "^1.2",
+		"phpcompatibility/phpcompatibility-wp": "^2.1",
 		"phpunit/phpunit": "^9.6",
+		"wp-coding-standards/wpcs": "^3.3",
 		"yoast/phpunit-polyfills": "^4.0"
 	},
 	"scripts": {
+		"lint:php": "phpcs --standard=phpcs.xml.dist",
 		"test": "phpunit -c phpunit.xml.dist"
+	},
+	"config": {
+		"allow-plugins": {
+			"dealerdirect/phpcodesniffer-composer-installer": true
+		}
 	}
 }

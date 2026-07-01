@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<ruleset name="WPCOM Playground">
+	<description>PHP_CodeSniffer rules for the WordPress.com Playground Importer plugin.</description>
+
+	<arg name="basepath" value="."/>
+	<arg name="extensions" value="php"/>
+	<arg name="parallel" value="8"/>
+	<arg value="sp"/>
+
+	<file>.</file>
+
+	<exclude-pattern>vendor/*</exclude-pattern>
+	<exclude-pattern>.phpunit.cache/*</exclude-pattern>
+	<exclude-pattern>node_modules/*</exclude-pattern>
+	<exclude-pattern>tests/fixtures/*</exclude-pattern>
+
+	<config name="minimum_supported_wp_version" value="7.0"/>
+	<config name="testVersion" value="8.3-"/>
+
+	<rule ref="WordPress"/>
+	<rule ref="PHPCompatibilityWP"/>
+</ruleset>

@@ -16,3 +16,9 @@ Run the imported WordPress tests:
 ```sh
 wp-env run tests-cli composer test --working-dir=/var/www/html/wp-content/plugins/wpcom-playground
 ```
+
+Run PHP coding standards checks:
+
+```sh
+wp-env run tests-cli composer lint:php --working-dir=/var/www/html/wp-content/plugins/wpcom-playground
+```
