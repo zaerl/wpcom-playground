@@ -5,6 +5,8 @@
  * @package wpcom-playground
  */
 
+// phpcs:disable WordPress.Security.EscapeOutput.OutputNotEscaped
+
 $_tests_dir = getenv( 'WP_TESTS_DIR' );
 
 if ( ! $_tests_dir ) {
@@ -61,20 +63,20 @@ function wpcom_playground_tests_require_import_files(): void {
  */
 function wpcom_playground_tests_alias_import_classes(): void {
 	$aliases = array(
-		'WPCom\\Playground\\Backup_Import_Action'              => 'Imports\\Backup_Import_Action',
-		'WPCom\\Playground\\Backup_Importer'                   => 'Imports\\Backup_Importer',
-		'WPCom\\Playground\\Backup_Import_Manager'             => 'Imports\\Backup_Import_Manager',
-		'WPCom\\Playground\\Playground_Importer'               => 'Imports\\Playground_Importer',
-		'WPCom\\Playground\\Playground_DB_Importer'            => 'Imports\\Playground_DB_Importer',
-		'WPCom\\Playground\\Playground_Clean_Up'               => 'Imports\\Playground_Clean_Up',
-		'WPCom\\Playground\\Playground_Site_Integrity_Check'   => 'Imports\\Playground_Site_Integrity_Check',
-		'WPCom\\Playground\\SQL_Generator'                     => 'Imports\\SQL_Generator',
-		'WPCom\\Playground\\SQL_Importer'                      => 'Imports\\SQL_Importer',
-		'WPCom\\Playground\\SQL_Postprocessor'                 => 'Imports\\SQL_Postprocessor',
-		'WPCom\\Playground\\Utils\\FileExtractor'              => 'Imports\\Utils\\FileExtractor',
-		'WPCom\\Playground\\Utils\\FileRestorer'               => 'Imports\\Utils\\FileRestorer',
-		'WPCom\\Playground\\Utils\\LoggerInterface'            => 'Imports\\Utils\\LoggerInterface',
-		'WPCom\\Playground\\Utils\\Logger\\FileLogger'         => 'Imports\\Utils\\Logger\\FileLogger',
+		'WPCom\\Playground\\Backup_Import_Action'      => 'Imports\\Backup_Import_Action',
+		'WPCom\\Playground\\Backup_Importer'           => 'Imports\\Backup_Importer',
+		'WPCom\\Playground\\Backup_Import_Manager'     => 'Imports\\Backup_Import_Manager',
+		'WPCom\\Playground\\Playground_Importer'       => 'Imports\\Playground_Importer',
+		'WPCom\\Playground\\Playground_DB_Importer'    => 'Imports\\Playground_DB_Importer',
+		'WPCom\\Playground\\Playground_Clean_Up'       => 'Imports\\Playground_Clean_Up',
+		'WPCom\\Playground\\Playground_Site_Integrity_Check' => 'Imports\\Playground_Site_Integrity_Check',
+		'WPCom\\Playground\\SQL_Generator'             => 'Imports\\SQL_Generator',
+		'WPCom\\Playground\\SQL_Importer'              => 'Imports\\SQL_Importer',
+		'WPCom\\Playground\\SQL_Postprocessor'         => 'Imports\\SQL_Postprocessor',
+		'WPCom\\Playground\\Utils\\FileExtractor'      => 'Imports\\Utils\\FileExtractor',
+		'WPCom\\Playground\\Utils\\FileRestorer'       => 'Imports\\Utils\\FileRestorer',
+		'WPCom\\Playground\\Utils\\LoggerInterface'    => 'Imports\\Utils\\LoggerInterface',
+		'WPCom\\Playground\\Utils\\Logger\\FileLogger' => 'Imports\\Utils\\Logger\\FileLogger',
 	);
 
 	foreach ( $aliases as $current => $legacy ) {
@@ -98,3 +100,5 @@ function wpcom_playground_tests_load_plugin(): void {
 tests_add_filter( 'muplugins_loaded', 'wpcom_playground_tests_load_plugin' );
 
 require_once $_tests_dir . '/includes/bootstrap.php';
+
+// phpcs:enable

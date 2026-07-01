@@ -109,6 +109,8 @@ class PlaygroundDBImporterTest extends WP_UnitTestCase {
 	/**
 	 * Generate a sql dump with custom output prefix.
 	 *
+	 * @param string $fixture_path Path to the fixture file.
+	 *
 	 * @dataProvider provide_valid_fixture_files
 	 */
 	public function test_generate_sql_with_valid_fixture_database_and_custom_output_prefix( $fixture_path ) {

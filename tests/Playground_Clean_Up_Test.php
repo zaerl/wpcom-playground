@@ -5,6 +5,8 @@
  * @package wpcomsh
  */
 
+// phpcs:disable WordPress.WP.AlternativeFunctions.unlink_unlink
+
 use Imports\Playground_Clean_Up;
 
 /**
@@ -50,3 +52,5 @@ class Playground_Clean_Up_Test extends WP_UnitTestCase {
 		}
 	}
 }
+
+// phpcs:enable

@@ -5,6 +5,8 @@
  * @package wpcomsh
  */
 
+// phpcs:disable WordPress.WP.AlternativeFunctions.file_system_operations_fclose
+
 use Imports\Backup_Import_Manager;
 
 /**
@@ -140,3 +142,5 @@ class BackupImportManagerTest extends WP_UnitTestCase {
 		$this->assertEquals( 'no_backup_import_found', $result->get_error_code() );
 	}
 }
+
+// phpcs:enable
