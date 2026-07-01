@@ -7,11 +7,11 @@
 
 // This class performs multiple low-level operations on the database.
 
-// phpcs:disable phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-// phpcs:disable WordPress.DB.DirectDatabaseQuery.NoCaching
 // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
-// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.NoCaching
 // phpcs:disable WordPress.DB.DirectDatabaseQuery.SchemaChange
+// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared
 
 namespace WPCom\Playground;
 
