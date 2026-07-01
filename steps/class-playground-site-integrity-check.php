@@ -40,7 +40,7 @@ class Playground_Site_Integrity_Check extends Backup_Import_Action {
 		$this->log( 'Current active theme found:' . $current_theme_slug );
 		$theme = wp_get_theme( $current_theme_slug );
 		if ( ! $theme->exists() ) {
-			// The theme is not installed
+			// The theme is not installed.
 			$this->log( 'Current theme' . $current_theme_slug . ' is not installed. Installing it now.' );
 			$result = FileRestorer::install_theme( $current_theme_slug );
 			$this->log( 'Install theme result: ' . $result );

@@ -74,7 +74,7 @@ class FileExtractor {
 	 * @return bool|WP_Error True on success, or a WP_Error on failure.
 	 */
 	private static function extract_tar( string $file, string $destination ) {
-		// For .tar and .tar.gz files, we'll use the PharData class
+		// For .tar and .tar.gz files, we'll use the PharData class.
 		try {
 			$phar = new \PharData( $file );
 			$phar->extractTo( $destination );

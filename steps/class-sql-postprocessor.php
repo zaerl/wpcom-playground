@@ -402,7 +402,7 @@ class SQL_Postprocessor extends Backup_Import_Action {
 			}
 
 			$tables[]  = $to;
-			$renames[] = $from . ' TO ' . $to; // The string 'tmp_wp_table TO wp_table'
+			$renames[] = $from . ' TO ' . $to; // The string 'tmp_wp_table TO wp_table'.
 		}
 
 		// Drop production wp_* tables.

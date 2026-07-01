@@ -128,7 +128,7 @@ class FileRestorer extends \WPCom\Playground\Backup_Import_Action {
 			$file_type       = $file_info_array['file_type'];
 			++$file_seen_count;
 
-			// Skip if the file is inside a symlinked theme or plugin
+			// Skip if the file is inside a symlinked theme or plugin.
 			if ( $file_type === 'theme_files' || $file_type === 'plugin_files' ) {
 				if ( $this->is_in_symlinked_directory( $file_type, $relative_path ) ) {
 					++$skipped_count;
@@ -198,19 +198,19 @@ class FileRestorer extends \WPCom\Playground\Backup_Import_Action {
 
 			foreach ( $dir_iterator as $fileinfo ) {
 				$dest_dir = str_replace( $this->source_dir, $this->dest_dir, $fileinfo->getPathname() );
-				// check if it's symlinked and not a dot directory on destination
+				// check if it's symlinked and not a dot directory on destination.
 				if ( $fileinfo->isDir() && ! $fileinfo->isDot() ) {
 					$dir_name = str_replace( $this->dest_dir, '', $dest_dir );
-					// if it's not exist on destination, skip it
+					// if it's not exist on destination, skip it.
 					if ( ! is_dir( $dest_dir ) ) {
 						continue;
 					}
 					if ( is_link( $dest_dir ) ) {
 						$symlinked_dirs[] = $dir_name;
 					} elseif ( strpos( $dir_name, self::PLUGINS_DIR ) === 0 ) {
-						// if it's a plugin directory, check if the plugin is managed by us
+						// If it's a plugin directory, check if the plugin is managed by us.
 						$parts = explode( '/', $dir_name );
-						// Last part is the plugin directory name
+						// Last part is the plugin directory name.
 						$plugin_to_symlink = array_pop( $parts );
 						if ( $this->is_plugin_symlinked( $plugin_to_symlink ) ) {
 							$symlinked_dirs[] = $dir_name;
@@ -418,7 +418,7 @@ class FileRestorer extends \WPCom\Playground\Backup_Import_Action {
 
 		if ( ! is_dir( $source_themes_dir ) ) {
 			$this->log( 'Install default themes: Source themes directory does not exist.' );
-			// Handle the case where the source themes directory does not exist
+			// Handle the case where the source themes directory does not exist.
 			return;
 		}
 
@@ -427,7 +427,7 @@ class FileRestorer extends \WPCom\Playground\Backup_Import_Action {
 		foreach ( $default_themes as $theme_dir ) {
 			$theme_slug = basename( $theme_dir );
 			if ( ! is_dir( $dest_themes_dir . '/' . $theme_slug ) ) {
-				// The theme is not installed on the destination site, so install it
+				// The theme is not installed on the destination site, so install it.
 				$this->log( 'Installing theme: ' . $theme_slug );
 				$result = self::install_theme( $theme_slug );
 				$this->log( 'Install theme result: ' . $result );

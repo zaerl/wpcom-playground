@@ -305,7 +305,7 @@ class SQL_Generator extends Backup_Import_Action {
 		}
 
 		if ( count( $primary_keys ) ) {
-			// Add the PRIMARY KEY
+			// Add the PRIMARY KEY.
 			$columns[] = 'PRIMARY KEY (' . implode( ',', $primary_keys ) . ')';
 		}
 

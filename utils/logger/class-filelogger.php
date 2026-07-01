@@ -76,8 +76,9 @@ class FileLogger implements LoggerInterface {
 			return false;
 		}
 
-		// Create or truncate the file
+		// Create or truncate the file.
 		file_put_contents( $file_path, '' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents
+
 		return true;
 	}
 }
