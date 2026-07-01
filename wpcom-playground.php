@@ -22,8 +22,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 define( 'WPCOM_PLAYGROUND_VERSION', '0.1.0' );
+define( 'WPCOM_PLAYGROUND_PLUGIN_FILE', __FILE__ );
 
+require_once __DIR__ . '/class-playground-admin-page.php';
 require_once __DIR__ . '/class-backup-import-manager.php';
+
+\WPCom\Playground\Playground_Admin_Page::init();
 
 /**
  * Instantiate the backup import manager as an early smoke test.
