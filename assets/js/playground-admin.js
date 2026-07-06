@@ -155,9 +155,19 @@ const startPlayground = async () => {
 		return;
 	}
 
+	const blueprint = {
+		steps: [
+			{
+				step: "runPHP",
+				code: "<?php require_once '/wordpress/wp-load.php';\n$page_args = array(\n'post_type' => 'post',\n'post_status' => 'publish',\n'post_title' => 'Hello WPCOM',\n'post_content' => '<p>Hello World</p>',\n);\nwp_insert_post( $page_args, true );",
+			}
+		]
+	}
+
 	try {
 		playgroundClient = await startPlaygroundWeb( {
 			iframe,
+			blueprint: blueprint,
 			remoteUrl:
 				root.dataset.remoteUrl ||
 				'https://playground.wordpress.net/remote.html',
