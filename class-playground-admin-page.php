@@ -446,6 +446,8 @@ class Playground_Admin_Page {
 				data-upload-action="<?php echo esc_attr( self::UPLOAD_ACTION ); ?>"
 				data-upload-nonce="<?php echo esc_attr( wp_create_nonce( self::UPLOAD_ACTION ) ); ?>"
 				data-upload-url="<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>"
+				data-import-url="<?php echo esc_url( rest_url( self::REST_NAMESPACE . '/imports' ) ); ?>"
+				data-rest-nonce="<?php echo esc_attr( wp_create_nonce( 'wp_rest' ) ); ?>"
 			>
 				<div class="wpcom-playground-admin__toolbar">
 					<p id="wpcom-playground-status" class="wpcom-playground-admin__status" role="status">

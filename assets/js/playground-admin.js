@@ -70,7 +70,48 @@ const uploadWpContentZip = async ( zipData ) => {
 		);
 	}
 
-	return result.data;
+	const attachment = result.data;
+
+	if (
+		! window.confirm(
+			'Are you sure?\n\nImport this Playground .zip into this site?'
+		)
+	) {
+		attachment.importCancelled = true;
+		return attachment;
+	}
+
+	setStatus( 'Importing Playground archive...', 'busy' );
+	attachment.importResult = await importUploadedWpContentZip( attachment );
+
+	return attachment;
+};
+
+const importUploadedWpContentZip = async ( attachment ) => {
+	if ( ! attachment?.attachmentId ) {
+		throw new Error( 'The Playground archive upload did not return an attachment ID.' );
+	}
+
+	const response = await window.fetch( root.dataset.importUrl, {
+		body: JSON.stringify( {
+			attachmentId: attachment.attachmentId,
+		} ),
+		credentials: 'same-origin',
+		headers: {
+			'Content-Type': 'application/json',
+			'X-WP-Nonce': root.dataset.restNonce,
+		},
+		method: 'POST',
+	} );
+	const result = await response.json();
+
+	if ( ! response.ok ) {
+		throw new Error(
+			result.message || 'The Playground archive could not be imported.'
+		);
+	}
+
+	return result;
 };
 
 const importWpContent = async () => {
@@ -91,12 +132,17 @@ const importWpContent = async () => {
 		const attachment = await uploadWpContentZip( zipData );
 
 		setImportResult( attachment );
-		setStatus( 'Playground archive saved in the Media Library.', 'ready' );
+		setStatus(
+			attachment.importCancelled
+				? 'Playground archive saved. Import cancelled.'
+				: 'Playground archive imported.',
+			'ready'
+		);
 	} catch ( error ) {
 		window.console.error( error );
 		setStatus(
 			error.message ||
-				'The Playground archive could not be saved in the Media Library.',
+				'The Playground archive could not be saved or imported.',
 			'error'
 		);
 	} finally {
