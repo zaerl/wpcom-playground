@@ -57,6 +57,7 @@ class Playground_Importer extends Backup_Importer {
 	 * @return bool|\WP_Error True on success, or a WP_Error on failure.
 	 */
 	public function preprocess() {
+		error_log( 'Preprocessing backup: ' . $this->zip_or_tar_file_path . ', ' . $this->destination_path );
 		$options  = array(
 			'output_mode' => SQL_Generator::OUTPUT_TYPE_FILE,
 			'output_file' => $this->tmp_database,
@@ -67,6 +68,7 @@ class Playground_Importer extends Backup_Importer {
 		$importer = new Playground_DB_Importer();
 		$results  = $importer->generate_sql( $db_path, $options );
 
+		error_log( 'Preprocessing results: ' . print_r( $results, true ) );
 		return is_wp_error( $results ) ? $results : true;
 	}
 
@@ -76,6 +78,7 @@ class Playground_Importer extends Backup_Importer {
 	 * @return bool|\WP_Error True on success, or a WP_Error on failure.
 	 */
 	public function process_files() {
+		error_log( 'Processing files from: ' . $this->destination_path . ', ' . $this->final_path );
 		$final_path    = '/srv/htdocs/';
 		$file_restorer = new FileRestorer( $this->destination_path, $final_path, $this->logger );
 		$queue_result  = $file_restorer->enqueue_files();
@@ -99,6 +102,7 @@ class Playground_Importer extends Backup_Importer {
 	 * @return bool|\WP_Error True on success, or a WP_Error on failure.
 	 */
 	public function recreate_database() {
+		error_log( 'Recreating database from: ' . $this->tmp_database );
 		return SQL_Importer::import( $this->tmp_database );
 	}
 
@@ -119,6 +123,7 @@ class Playground_Importer extends Backup_Importer {
 	 * @return bool|\WP_Error True on success, or a WP_Error on failure.
 	 */
 	public function clean_up() {
+		error_log( 'Cleaning up after import: ' . $this->zip_or_tar_file_path . ', ' . $this->destination_path );
 		return Playground_Clean_Up::remove_tmp_files( $this->zip_or_tar_file_path, $this->destination_path );
 	}
 
@@ -128,6 +133,7 @@ class Playground_Importer extends Backup_Importer {
 	 * @return bool always true for now
 	 */
 	public function verify_site_integrity() {
+		error_log( 'Verifying site integrity after import: ' . $this->destination_path );
 		$checker = new Playground_Site_Integrity_Check( $this->logger );
 		return $checker->check();
 	}
