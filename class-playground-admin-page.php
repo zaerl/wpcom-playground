@@ -188,6 +188,7 @@ class Playground_Admin_Page {
 		}
 
 		$destination = '/tmp/' . wp_generate_password( 12, false );
+		$dry_run     = false;
 
 		/**
 		 * Filters the backup import manager used to import an uploaded Playground archive.
@@ -204,7 +205,7 @@ class Playground_Admin_Page {
 				$destination,
 				array(
 					'skip_clean_up' => false,
-					'dry_run'       => true,
+					'dry_run'       => $dry_run,
 					'actions'       => array(),
 					'skip_unpack'   => false,
 				)
