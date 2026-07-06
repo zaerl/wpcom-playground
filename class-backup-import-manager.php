@@ -302,6 +302,8 @@ class Backup_Import_Manager {
 	 * @return string|WP_Error The type of the importer or a WP_Error if the type could not be determined.
 	 */
 	public static function determine_importer_type( $destination_path ) {
+		require_once __DIR__ . '/class-playground-importer.php';
+
 		if ( file_exists( $destination_path . Playground_Importer::SQLITE_DB_PATH ) ) {
 			return self::WORDPRESS_PLAYGROUND;
 		}
