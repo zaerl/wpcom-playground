@@ -285,7 +285,8 @@ class SQL_Postprocessor extends Backup_Import_Action {
 
 		if ( ! class_exists( '\Automattic\Jetpack\Connection\Manager' ) ) {
 			// Jetpack is not installed.
-			return $this->error( 'jetpack-not-installed', __( 'Jetpack is not installed.', 'wpcomsh' ) );
+			// return $this->error( 'jetpack-not-installed', __( 'Jetpack is not installed.', 'wpcomsh' ) );
+			return true;
 		}
 
 		$manager  = new Connection_Manager( 'jetpack' );
