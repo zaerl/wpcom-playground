@@ -78,8 +78,8 @@ class Playground_Importer extends Backup_Importer {
 	 * @return bool|\WP_Error True on success, or a WP_Error on failure.
 	 */
 	public function process_files() {
-		error_log( 'Processing files from: ' . $this->destination_path . ', ' . $this->final_path );
 		$final_path    = '/srv/htdocs/';
+		error_log( 'Processing files from: ' . $this->destination_path . ', ' . $final_path );
 		$file_restorer = new FileRestorer( $this->destination_path, $final_path, $this->logger );
 		$queue_result  = $file_restorer->enqueue_files();
 
