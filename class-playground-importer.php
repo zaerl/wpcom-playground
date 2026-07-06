@@ -78,7 +78,7 @@ class Playground_Importer extends Backup_Importer {
 	 * @return bool|\WP_Error True on success, or a WP_Error on failure.
 	 */
 	public function process_files() {
-		$final_path    = '/srv/htdocs/';
+		$final_path = $this->get_site_installation_path();
 		error_log( 'Processing files from: ' . $this->destination_path . ', ' . $final_path );
 		$file_restorer = new FileRestorer( $this->destination_path, $final_path, $this->logger );
 		$queue_result  = $file_restorer->enqueue_files();
@@ -94,6 +94,15 @@ class Playground_Importer extends Backup_Importer {
 		}
 
 		return true;
+	}
+
+	/**
+	 * Get the current WordPress installation path.
+	 *
+	 * @return string WordPress installation path.
+	 */
+	private function get_site_installation_path(): string {
+		return trailingslashit( ABSPATH );
 	}
 
 	/**
