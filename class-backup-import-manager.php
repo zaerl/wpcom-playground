@@ -234,22 +234,16 @@ class Backup_Import_Manager {
 
 			$this->update_status( array( 'status' => $action ) );
 
-			if ( $dry_run ) {
-				// Wait for 15-20 seconds in dry-run mode.
-				sleep( \wp_rand( 15, 20 ) );
-			} else {
-				// Call the importer's method.
-				$result = $importer->$action();
+			$result = $importer->$action( $dry_run );
 
-				if ( is_wp_error( $result ) ) {
-					$this->update_status( array( 'status' => self::FAILED ) );
+			if ( is_wp_error( $result ) ) {
+				$this->update_status( array( 'status' => self::FAILED ) );
 
-					if ( $bump_stats ) {
-						$this->bump_import_stats( $result->get_error_code() );
-					}
-
-					return $result;
+				if ( $bump_stats ) {
+					$this->bump_import_stats( $result->get_error_code() );
 				}
+
+				return $result;
 			}
 		}
 

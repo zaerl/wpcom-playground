@@ -44,6 +44,7 @@ class Playground_Importer extends Backup_Importer {
 	 */
 	public function __construct( string $zip_or_tar_file_path, string $destination_path, string $tmp_prefix ) {
 		parent::__construct( $zip_or_tar_file_path, $destination_path, $tmp_prefix );
+		error_log( 'Initializing Playground_Importer with zip_or_tar_file_path: ' . $zip_or_tar_file_path . ', destination_path: ' . $destination_path . ', tmp_prefix: ' . $tmp_prefix );
 
 		$this->logger = new FileLogger();
 		$this->logger->check_and_clear_file();
@@ -56,8 +57,13 @@ class Playground_Importer extends Backup_Importer {
 	 *
 	 * @return bool|\WP_Error True on success, or a WP_Error on failure.
 	 */
-	public function preprocess() {
+	public function preprocess( $dry_run = false ) {
 		error_log( 'Preprocessing backup: ' . $this->zip_or_tar_file_path . ', ' . $this->destination_path );
+
+		if ( $dry_run ) {
+			return true;
+		}
+
 		$options  = array(
 			'output_mode' => SQL_Generator::OUTPUT_TYPE_FILE,
 			'output_file' => $this->tmp_database,
@@ -68,7 +74,6 @@ class Playground_Importer extends Backup_Importer {
 		$importer = new Playground_DB_Importer();
 		$results  = $importer->generate_sql( $db_path, $options );
 
-		error_log( 'Preprocessing results: ' . print_r( $results, true ) );
 		return is_wp_error( $results ) ? $results : true;
 	}
 
@@ -77,8 +82,13 @@ class Playground_Importer extends Backup_Importer {
 	 *
 	 * @return bool|\WP_Error True on success, or a WP_Error on failure.
 	 */
-	public function process_files() {
+	public function process_files( $dry_run = false ) {
 		$final_path = $this->get_site_installation_path();
+
+		if ( $dry_run ) {
+			return true;
+		}
+
 		error_log( 'Processing files from: ' . $this->destination_path . ', ' . $final_path );
 		$file_restorer = new FileRestorer( $this->destination_path, $final_path, $this->logger );
 		$queue_result  = $file_restorer->enqueue_files();
@@ -97,21 +107,17 @@ class Playground_Importer extends Backup_Importer {
 	}
 
 	/**
-	 * Get the current WordPress installation path.
-	 *
-	 * @return string WordPress installation path.
-	 */
-	private function get_site_installation_path(): string {
-		return trailingslashit( ABSPATH );
-	}
-
-	/**
 	 * Recreate the database from the backup.
 	 *
 	 * @return bool|\WP_Error True on success, or a WP_Error on failure.
 	 */
-	public function recreate_database() {
+	public function recreate_database( $dry_run = false ) {
 		error_log( 'Recreating database from: ' . $this->tmp_database );
+
+		if ( $dry_run ) {
+			return true;
+		}
+
 		return SQL_Importer::import( $this->tmp_database );
 	}
 
@@ -120,8 +126,12 @@ class Playground_Importer extends Backup_Importer {
 	 *
 	 * @return bool|\WP_Error True on success, or a WP_Error on failure.
 	 */
-	public function postprocess_database() {
+	public function postprocess_database( $dry_run = false ) {
 		$processor = new SQL_Postprocessor( get_home_url(), get_site_url(), $this->tmp_prefix, false, $this->logger );
+
+		if ( $dry_run ) {
+			return true;
+		}
 
 		return $processor->postprocess();
 	}
@@ -131,8 +141,13 @@ class Playground_Importer extends Backup_Importer {
 	 *
 	 * @return bool|\WP_Error True on success, or a WP_Error on failure.
 	 */
-	public function clean_up() {
+	public function clean_up( $dry_run = false ) {
 		error_log( 'Cleaning up after import: ' . $this->zip_or_tar_file_path . ', ' . $this->destination_path );
+
+		if ( $dry_run ) {
+			return true;
+		}
+
 		return Playground_Clean_Up::remove_tmp_files( $this->zip_or_tar_file_path, $this->destination_path );
 	}
 
@@ -141,8 +156,13 @@ class Playground_Importer extends Backup_Importer {
 	 *
 	 * @return bool always true for now
 	 */
-	public function verify_site_integrity() {
+	public function verify_site_integrity( $dry_run = false ) {
 		error_log( 'Verifying site integrity after import: ' . $this->destination_path );
+
+		if ( $dry_run ) {
+			return true;
+		}
+
 		$checker = new Playground_Site_Integrity_Check( $this->logger );
 		return $checker->check();
 	}
@@ -156,5 +176,14 @@ class Playground_Importer extends Backup_Importer {
 	 */
 	public static function is_valid( $destination_path ): bool {
 		return file_exists( trailingslashit( $destination_path ) . self::SQLITE_DB_PATH );
+	}
+
+	/**
+	 * Get the current WordPress installation path.
+	 *
+	 * @return string WordPress installation path.
+	 */
+	private function get_site_installation_path(): string {
+		return trailingslashit( ABSPATH );
 	}
 }

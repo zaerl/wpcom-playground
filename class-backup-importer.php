@@ -63,7 +63,7 @@ abstract class Backup_Importer {
 	 *
 	 * @return bool|WP_Error True on success, or a WP_Error on failure.
 	 */
-	abstract public function preprocess();
+	abstract public function preprocess( $dry_run = false );
 
 	/**
 	 * Process the files in the backup.
@@ -72,7 +72,7 @@ abstract class Backup_Importer {
 	 *
 	 * @return bool|WP_Error True on success, or a WP_Error on failure.
 	 */
-	abstract public function process_files();
+	abstract public function process_files( $dry_run = false );
 
 	/**
 	 * Recreate the database from the backup.
@@ -81,7 +81,7 @@ abstract class Backup_Importer {
 	 *
 	 * @return bool|WP_Error True on success, or a WP_Error on failure.
 	 */
-	abstract public function recreate_database();
+	abstract public function recreate_database( $dry_run = false );
 
 	/**
 	 * Postprocess the database after importing.
@@ -90,7 +90,7 @@ abstract class Backup_Importer {
 	 *
 	 * @return bool|WP_Error True on success, or a WP_Error on failure.
 	 */
-	abstract public function postprocess_database();
+	abstract public function postprocess_database( $dry_run = false );
 
 	/**
 	 * Clean up after the import.
@@ -99,7 +99,7 @@ abstract class Backup_Importer {
 	 *
 	 * @return bool|WP_Error True on success, or a WP_Error on failure.
 	 */
-	abstract public function clean_up();
+	abstract public function clean_up( $dry_run = false );
 
 	/**
 	 * Verify the integrity of the site after importing.
@@ -108,5 +108,5 @@ abstract class Backup_Importer {
 	 *
 	 * @return bool|WP_Error True on success, or a WP_Error on failure.
 	 */
-	abstract public function verify_site_integrity();
+	abstract public function verify_site_integrity( $dry_run = false );
 }
