@@ -10,6 +10,10 @@ use Imports\SQL_Importer;
 // These tests intentionally use temporary file handles instead of WP_Filesystem.
 // phpcs:disable WordPress.WP.AlternativeFunctions.file_system_operations_fclose
 // phpcs:disable WordPress.WP.AlternativeFunctions.file_system_operations_fwrite
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.NoCaching
+// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.SchemaChange
 
 /**
  * Class SQLImporterTest.
@@ -74,6 +78,34 @@ class SQLImporterTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Import a SQL file using the mysqli fallback.
+	 */
+	public function test_import_with_mysqli_imports_sql_file() {
+		global $wpdb;
+
+		$table_name = $wpdb->prefix . 'sql_importer_test';
+		$this->generate_tmp_sql(
+			"DROP TABLE IF EXISTS `$table_name`;
+			CREATE TABLE `$table_name` (
+				id bigint(20) NOT NULL,
+				name varchar(20) NOT NULL,
+				PRIMARY KEY  (id)
+			);
+			INSERT INTO `$table_name` (id, name) VALUES (1, 'imported');"
+		);
+
+		$method = new ReflectionMethod( SQL_Importer::class, 'import_with_mysqli' );
+		$method->setAccessible( true );
+
+		$result = $method->invoke( null, $this->tmp_sql_path );
+
+		$this->assertTrue( $result );
+		$this->assertSame( 'imported', $wpdb->get_var( "SELECT name FROM `$table_name` WHERE id = 1" ) );
+
+		$wpdb->query( "DROP TABLE IF EXISTS `$table_name`" );
+	}
+
+	/**
 	 * Generates a temporary SQL.
 	 *
 	 * @param mixed $data Data to write in the database.
@@ -85,6 +117,7 @@ class SQLImporterTest extends WP_UnitTestCase {
 
 		if ( $data !== null ) {
 			fwrite( $this->tmp_sql_file, $data );
+			fflush( $this->tmp_sql_file );
 		}
 	}
 }
