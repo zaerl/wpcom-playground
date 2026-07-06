@@ -46,7 +46,7 @@ class Playground_Admin_Page {
 	public static function add_menu_page(): void {
 		add_management_page(
 			__( 'WordPress Playground', 'wpcom-playground' ),
-			__( 'Playground', 'wpcom-playground' ),
+			__( 'Playground importer', 'wpcom-playground' ),
 			'manage_options',
 			self::MENU_SLUG,
 			array( __CLASS__, 'render_page' )
@@ -191,7 +191,7 @@ class Playground_Admin_Page {
 				'post_mime_type' => $upload['type'],
 				'post_title'     => preg_replace( '/\.[^.]+$/', '', basename( $upload['file'] ) ),
 				'post_content'   => '',
-				'post_status'    => 'inherit',
+				'post_status'    => 'private',
 			),
 			$upload['file']
 		);
