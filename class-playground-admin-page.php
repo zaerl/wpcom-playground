@@ -7,6 +7,10 @@
 
 namespace WPCom\Playground;
 
+use WP_Error;
+use WP_REST_Request;
+use WP_REST_Response;
+
 /**
  * Adds a wp-admin screen that embeds WordPress Playground.
  */
@@ -27,15 +31,41 @@ class Playground_Admin_Page {
 	private const UPLOAD_ACTION = 'wpcom_playground_import_wp_content';
 
 	/**
+	 * REST API namespace.
+	 */
+	private const REST_NAMESPACE = 'wpcom-playground/v1';
+
+	/**
+	 * Tag used to identify uploaded Playground archives.
+	 */
+	private const PLAYGROUND_ARCHIVE_TAG = 'wpcom-playground-import';
+
+	/**
+	 * Tag label used to identify uploaded Playground archives.
+	 */
+	private const PLAYGROUND_ARCHIVE_TAG_NAME = 'WordPress Playground Import';
+
+	/**
 	 * Register WordPress hooks.
 	 *
 	 * @return void
 	 */
 	public static function init(): void {
+		add_action( 'init', array( __CLASS__, 'register_attachment_taxonomies' ) );
 		add_action( 'admin_menu', array( __CLASS__, 'add_menu_page' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_assets' ) );
 		add_action( 'wp_ajax_' . self::UPLOAD_ACTION, array( __CLASS__, 'upload_wp_content_zip' ) );
+		add_action( 'rest_api_init', array( __CLASS__, 'register_rest_routes' ) );
 		add_filter( 'script_loader_tag', array( __CLASS__, 'add_module_type_to_script' ), 10, 3 );
+	}
+
+	/**
+	 * Register tags for Media Library attachments.
+	 *
+	 * @return void
+	 */
+	public static function register_attachment_taxonomies(): void {
+		register_taxonomy_for_object_type( 'post_tag', 'attachment' );
 	}
 
 	/**
@@ -103,6 +133,106 @@ class Playground_Admin_Page {
 				'type' => 'module',
 				'src'  => $src,
 				'id'   => $handle . '-js',
+			)
+		);
+	}
+
+	/**
+	 * Register REST API routes.
+	 *
+	 * @return void
+	 */
+	public static function register_rest_routes(): void {
+		register_rest_route(
+			self::REST_NAMESPACE,
+			'/imports',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( __CLASS__, 'start_backup_import' ),
+				'permission_callback' => array( __CLASS__, 'can_import_playground_archive' ),
+				'args'                => array(
+					'attachmentId' => array(
+						'description'       => __( 'Uploaded Playground archive attachment ID.', 'wpcom-playground' ),
+						'type'              => 'integer',
+						'required'          => true,
+						'minimum'           => 1,
+						'sanitize_callback' => 'absint',
+					),
+				),
+			)
+		);
+	}
+
+	/**
+	 * Check whether the current user can start Playground imports.
+	 *
+	 * @return bool Whether the current user can import Playground archives.
+	 */
+	public static function can_import_playground_archive(): bool {
+		return current_user_can( 'manage_options' );
+	}
+
+	/**
+	 * Start a backup import from an uploaded Playground archive.
+	 *
+	 * @param WP_REST_Request $request REST request.
+	 *
+	 * @return WP_REST_Response|WP_Error REST response or error.
+	 */
+	public static function start_backup_import( WP_REST_Request $request ) {
+		$attachment_id = absint( $request->get_param( 'attachmentId' ) );
+		$source        = self::get_playground_archive_source_path( $attachment_id );
+
+		if ( is_wp_error( $source ) ) {
+			return $source;
+		}
+
+		$destination = '/tmp/' . wp_generate_password( 12, false );
+
+		/**
+		 * Filters the backup import manager used to import an uploaded Playground archive.
+		 *
+		 * @param Backup_Import_Manager $manager       Backup import manager instance.
+		 * @param string                $source        Uploaded archive path.
+		 * @param string                $destination   Temporary extraction destination.
+		 * @param int                   $attachment_id Uploaded archive attachment ID.
+		 */
+		$manager = apply_filters(
+			'wpcom_playground_backup_import_manager',
+			new Backup_Import_Manager(
+				$source,
+				$destination,
+				array(
+					'skip_clean_up' => false,
+					'dry_run'       => true,
+					'actions'       => array(),
+					'skip_unpack'   => false,
+				)
+			),
+			$source,
+			$destination,
+			$attachment_id
+		);
+
+		if ( ! is_object( $manager ) || ! method_exists( $manager, 'import' ) ) {
+			return new WP_Error(
+				'invalid_backup_import_manager',
+				__( 'The backup import manager could not be initialized.', 'wpcom-playground' ),
+				array( 'status' => 500 )
+			);
+		}
+
+		$result = $manager->import();
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		return new WP_REST_Response(
+			array(
+				'attachmentId' => $attachment_id,
+				'destination'  => $destination,
+				'source'       => $source,
+				'success'      => (bool) $result,
 			)
 		);
 	}
@@ -205,6 +335,17 @@ class Playground_Admin_Page {
 			);
 		}
 
+		$tag_result = self::tag_playground_archive_attachment( $attachment_id );
+		if ( is_wp_error( $tag_result ) ) {
+			wp_delete_attachment( $attachment_id, true );
+			wp_send_json_error(
+				array(
+					'message' => $tag_result->get_error_message(),
+				),
+				500
+			);
+		}
+
 		$metadata = wp_generate_attachment_metadata( $attachment_id, $upload['file'] );
 		if ( ! empty( $metadata ) ) {
 			wp_update_attachment_metadata( $attachment_id, $metadata );
@@ -214,9 +355,75 @@ class Playground_Admin_Page {
 			array(
 				'attachmentId' => $attachment_id,
 				'editUrl'      => get_edit_post_link( $attachment_id, 'raw' ),
+				'tag'          => self::PLAYGROUND_ARCHIVE_TAG,
 				'url'          => wp_get_attachment_url( $attachment_id ),
 			)
 		);
+	}
+
+	/**
+	 * Tag an uploaded Playground archive attachment.
+	 *
+	 * @param int $attachment_id Attachment ID.
+	 *
+	 * @return array|WP_Error Assigned term taxonomy IDs or error.
+	 */
+	private static function tag_playground_archive_attachment( int $attachment_id ) {
+		$term = term_exists( self::PLAYGROUND_ARCHIVE_TAG, 'post_tag' );
+
+		if ( 0 === $term || null === $term ) {
+			$term = wp_insert_term(
+				self::PLAYGROUND_ARCHIVE_TAG_NAME,
+				'post_tag',
+				array(
+					'slug' => self::PLAYGROUND_ARCHIVE_TAG,
+				)
+			);
+		}
+
+		if ( is_wp_error( $term ) ) {
+			return $term;
+		}
+
+		$term_id = is_array( $term ) ? (int) $term['term_id'] : (int) $term;
+
+		return wp_set_object_terms( $attachment_id, $term_id, 'post_tag', false );
+	}
+
+	/**
+	 * Get and validate the source file path for an uploaded Playground archive.
+	 *
+	 * @param int $attachment_id Attachment ID.
+	 *
+	 * @return string|WP_Error Source file path or error.
+	 */
+	private static function get_playground_archive_source_path( int $attachment_id ) {
+		if ( ! $attachment_id || 'attachment' !== get_post_type( $attachment_id ) ) {
+			return new WP_Error(
+				'invalid_playground_archive',
+				__( 'The requested Playground archive attachment does not exist.', 'wpcom-playground' ),
+				array( 'status' => 404 )
+			);
+		}
+
+		if ( ! has_term( self::PLAYGROUND_ARCHIVE_TAG, 'post_tag', $attachment_id ) ) {
+			return new WP_Error(
+				'invalid_playground_archive',
+				__( 'The requested attachment is not a Playground archive upload.', 'wpcom-playground' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$source = get_attached_file( $attachment_id );
+		if ( ! $source || ! file_exists( $source ) ) {
+			return new WP_Error(
+				'missing_playground_archive_file',
+				__( 'The Playground archive file could not be found in the Media Library.', 'wpcom-playground' ),
+				array( 'status' => 404 )
+			);
+		}
+
+		return $source;
 	}
 
 	/**
