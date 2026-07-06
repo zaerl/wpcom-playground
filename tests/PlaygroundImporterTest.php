@@ -28,4 +28,16 @@ class PlaygroundImporterTest extends WP_UnitTestCase {
 	public function test_error_not_valid_backup() {
 		$this->assertFalse( Playground_Importer::is_valid( '.' ) );
 	}
+
+	/**
+	 * Test that file restoration targets the current WordPress installation.
+	 */
+	public function test_site_installation_path_uses_wordpress_installation_path() {
+		$importer = new Playground_Importer( 'rand-file', sys_get_temp_dir(), 'test_' );
+		$method   = new ReflectionMethod( $importer, 'get_site_installation_path' );
+
+		$method->setAccessible( true );
+
+		$this->assertSame( trailingslashit( ABSPATH ), $method->invoke( $importer ) );
+	}
 }
