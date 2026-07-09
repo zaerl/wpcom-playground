@@ -95,23 +95,39 @@ class Playground_Admin_Page {
 			return;
 		}
 
-		$plugin_url = plugin_dir_url( WPCOM_PLAYGROUND_PLUGIN_FILE );
+		$plugin_url   = plugin_dir_url( WPCOM_PLAYGROUND_PLUGIN_FILE );
+		$plugin_path  = plugin_dir_path( WPCOM_PLAYGROUND_PLUGIN_FILE );
+		$style_asset  = 'assets/css/playground-admin.css';
+		$script_asset = 'assets/js/playground-admin.js';
 
 		wp_enqueue_style(
 			'wpcom-playground-admin',
-			$plugin_url . 'assets/css/playground-admin.css',
+			$plugin_url . $style_asset,
 			array(),
-			WPCOM_PLAYGROUND_VERSION
+			self::get_asset_version( $plugin_path . $style_asset )
 		);
 
 		wp_enqueue_script(
 			'wpcom-playground-admin',
-			$plugin_url . 'assets/js/playground-admin.js',
+			$plugin_url . $script_asset,
 			array(),
-			WPCOM_PLAYGROUND_VERSION,
+			self::get_asset_version( $plugin_path . $script_asset ),
 			true
 		);
 		wp_script_add_data( 'wpcom-playground-admin', 'type', 'module' );
+	}
+
+	/**
+	 * Get an asset version that changes when the file changes.
+	 *
+	 * @param string $asset_path Absolute asset path.
+	 *
+	 * @return string Asset version.
+	 */
+	private static function get_asset_version( string $asset_path ): string {
+		$modified_time = file_exists( $asset_path ) ? filemtime( $asset_path ) : false;
+
+		return $modified_time ? (string) $modified_time : WPCOM_PLAYGROUND_VERSION;
 	}
 
 	/**

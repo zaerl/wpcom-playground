@@ -4,7 +4,7 @@
 	box-sizing: border-box;
 	display: flex;
 	flex-direction: column;
-	min-height: 760px;
+	min-height: 1280px;
 }
 
 .wpcom-playground-admin__toolbar {
@@ -39,6 +39,6 @@
 	background: #f0f0f1;
 	border: 0;
 	flex: 1;
-	min-height: 720px;
+	height: 1280px;
 	width: 100%;
 }
