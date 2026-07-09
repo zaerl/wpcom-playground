@@ -191,6 +191,10 @@ const startPlayground = async () => {
 	const blueprint = JSON.parse( `{
   "steps": [
     {
+      "step": "login",
+      "username": "admin"
+    },
+    {
       "step": "runPHP",
       "code": "<?php require_once '/wordpress/wp-load.php'; $page_args = array( 'post_type'    => 'post', 'post_status'  => 'publish', 'post_title'   => 'Hello WPCOM', 'post_content' => '<p>Hello World</p>', ); $page_id = wp_insert_post( $page_args, true ); if ( is_wp_error( $page_id ) ) { error_log( 'addPost error: ' . $page_id->get_error_message() ); }",
       "progress": {
