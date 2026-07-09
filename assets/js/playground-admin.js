@@ -1,6 +1,6 @@
 import {
 	startPlaygroundWeb,
-	zipWpContent,
+	zipWpContent as cdnZipWpContent,
 } from 'https://playground.wordpress.net/client/index.js';
 
 const root = document.getElementById( 'wpcom-playground-admin' );
@@ -8,6 +8,22 @@ const iframe = document.getElementById( 'wpcom-playground-iframe' );
 const importButton = document.getElementById( 'wpcom-playground-import' );
 const importResult = document.getElementById( 'wpcom-playground-import-result' );
 const status = document.getElementById( 'wpcom-playground-status' );
+
+const useLocalZipWpContent = true;
+
+const getWpContentExportExclusions = () => {
+	try {
+		const exclusions = JSON.parse(
+			root?.dataset.wpContentExportExclusions || '[]'
+		);
+		return Array.isArray( exclusions ) ? exclusions : [];
+	} catch ( error ) {
+		window.console.error( error );
+		return [];
+	}
+};
+
+const wpContentFilesExcludedFromExport = getWpContentExportExclusions();
 
 let playgroundClient = null;
 
@@ -74,7 +90,7 @@ const uploadWpContentZip = async ( zipData ) => {
 
 	if (
 		! window.confirm(
-			'Are you sure?\n\nImport this Playground .zip into this site?'
+			'Are you sure?  Import this Playground .zip into this site?'
 		)
 	) {
 		attachment.importCancelled = true;
@@ -124,9 +140,18 @@ const importWpContent = async () => {
 		setStatus( 'Creating Playground wp-content archive...', 'busy' );
 		setImportResult( null );
 
-		const zipData = await zipWpContent( playgroundClient, {
-			selfContained: true,
-		} );
+		let zipData;
+		if ( useLocalZipWpContent ) {
+			const { zipWpContent: localZipWpContent } = await import(
+				'./zip-wp-content.js'
+			);
+			zipData = await localZipWpContent(
+				playgroundClient,
+				wpContentFilesExcludedFromExport
+			);
+		} else {
+			zipData = await cdnZipWpContent( playgroundClient );
+		}
 
 		setStatus( 'Saving Playground archive in the Media Library...', 'busy' );
 		const attachment = await uploadWpContentZip( zipData );
@@ -155,14 +180,43 @@ const startPlayground = async () => {
 		return;
 	}
 
-	const blueprint = {
+	/*const blueprint = {
 		steps: [
 			{
 				step: "runPHP",
-				code: "<?php require_once '/wordpress/wp-load.php';\n$page_args = array(\n'post_type' => 'post',\n'post_status' => 'publish',\n'post_title' => 'Hello WPCOM',\n'post_content' => '<p>Hello World</p>',\n);\nwp_insert_post( $page_args, true );",
+				code: "<?php require_once '/wordpress/wp-load.php'; $page_args = array( 'post_type' => 'post', 'post_status' => 'publish', 'post_title' => 'Hello WPCOM', 'post_content' => '<p>Hello World</p>', ); wp_insert_post( $page_args, true );",
 			}
 		]
-	}
+	}*/
+	const blueprint = JSON.parse( `{
+  "steps": [
+    {
+      "step": "runPHP",
+      "code": "<?php require_once '/wordpress/wp-load.php'; $page_args = array( 'post_type'    => 'post', 'post_status'  => 'publish', 'post_title'   => 'Hello WPCOM', 'post_content' => '<p>Hello World</p>', ); $page_id = wp_insert_post( $page_args, true ); if ( is_wp_error( $page_id ) ) { error_log( 'addPost error: ' . $page_id->get_error_message() ); }",
+      "progress": {
+        "caption": "addPost: Hello WPCOM"
+      }
+    },
+    {
+      "step": "installTheme",
+      "themeData": {
+        "resource": "wordpress.org/themes",
+        "slug": "pendant"
+      },
+      "options": {
+        "activate": true
+      },
+      "progress": {
+        "caption": "Installing theme: pendant"
+      }
+    }
+  ],
+  "$schema": "https://playground.wordpress.net/blueprint-schema.json",
+  "meta": {
+    "title": "Theme (pendant) + addPost",
+    "author": "https://github.com/akirk/playground-step-library"
+  }
+}` );
 
 	try {
 		playgroundClient = await startPlaygroundWeb( {

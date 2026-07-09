@@ -131,6 +131,34 @@ class Playground_Admin_Page {
 	}
 
 	/**
+	 * Get wp-content paths that should be excluded from Playground exports.
+	 *
+	 * @return string[] Relative wp-content paths to exclude.
+	 */
+	private static function get_wp_content_export_exclusions(): array {
+		require_once ABSPATH . 'wp-admin/includes/plugin.php';
+
+		$exclusions = array();
+
+		foreach ( array_keys( wp_get_themes() ) as $stylesheet ) {
+			$exclusions[] = 'themes/' . $stylesheet;
+		}
+
+		foreach ( array_keys( get_plugins() ) as $plugin_file ) {
+			$plugin_file = wp_normalize_path( $plugin_file );
+			$plugin_dir  = dirname( $plugin_file );
+
+			if ( '.' === $plugin_dir ) {
+				$exclusions[] = 'plugins/' . $plugin_file;
+			} else {
+				$exclusions[] = 'plugins/' . $plugin_dir;
+			}
+		}
+
+		return array_values( array_unique( $exclusions ) );
+	}
+
+	/**
 	 * Add the module script type to the Playground admin script tag.
 	 *
 	 * @param string $tag    Script tag HTML.
@@ -220,7 +248,7 @@ class Playground_Admin_Page {
 				$source,
 				$destination,
 				array(
-					'skip_clean_up' => false,
+					'skip_clean_up' => true,
 					'dry_run'       => $dry_run,
 					'actions'       => array(),
 					'skip_unpack'   => false,
@@ -452,6 +480,8 @@ class Playground_Admin_Page {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_die( esc_html__( 'You do not have permission to access this page.', 'wpcom-playground' ) );
 		}
+
+		$wp_content_export_exclusions = wp_json_encode( self::get_wp_content_export_exclusions() );
 		?>
 		<div class="wrap wpcom-playground-admin">
 			<h1><?php echo esc_html__( 'WordPress Playground', 'wpcom-playground' ); ?></h1>
@@ -462,10 +492,11 @@ class Playground_Admin_Page {
 				data-remote-url="<?php echo esc_url( self::PLAYGROUND_REMOTE_URL ); ?>"
 				data-upload-action="<?php echo esc_attr( self::UPLOAD_ACTION ); ?>"
 				data-upload-nonce="<?php echo esc_attr( wp_create_nonce( self::UPLOAD_ACTION ) ); ?>"
-				data-upload-url="<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>"
-				data-import-url="<?php echo esc_url( rest_url( self::REST_NAMESPACE . '/imports' ) ); ?>"
-				data-rest-nonce="<?php echo esc_attr( wp_create_nonce( 'wp_rest' ) ); ?>"
-			>
+					data-upload-url="<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>"
+					data-import-url="<?php echo esc_url( rest_url( self::REST_NAMESPACE . '/imports' ) ); ?>"
+					data-rest-nonce="<?php echo esc_attr( wp_create_nonce( 'wp_rest' ) ); ?>"
+					data-wp-content-export-exclusions="<?php echo esc_attr( $wp_content_export_exclusions ); ?>"
+				>
 				<div class="wpcom-playground-admin__toolbar">
 					<p id="wpcom-playground-status" class="wpcom-playground-admin__status" role="status">
 						<?php echo esc_html__( 'Starting WordPress Playground...', 'wpcom-playground' ); ?>
