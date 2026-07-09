@@ -441,14 +441,16 @@ class FileRestorer extends \WPCom\Playground\Backup_Import_Action {
 	 * @return array The list of file exclusion patterns.
 	 */
 	public function get_file_exclusion_list() {
+		$source_root = preg_quote( $this->source_dir, '/' );
+
 		return array(
 			array(
-				'pattern' => '/\/wp-admin\//',
-				'message' => 'Excluded because path includes /wp-admin/.',
+				'pattern' => '/^' . $source_root . 'wp-admin\//',
+				'message' => 'Excluded because path is in the root wp-admin directory.',
 			),
 			array(
-				'pattern' => '/\/wp-includes\//',
-				'message' => 'Excluded because path includes /wp-includes/.',
+				'pattern' => '/^' . $source_root . 'wp-includes\//',
+				'message' => 'Excluded because path is in the root wp-includes directory.',
 			),
 			array(
 				'pattern' => '/\.sql$/',
