@@ -46,6 +46,16 @@ class Playground_Admin_Page {
 	private const PLAYGROUND_ARCHIVE_TAG_NAME = 'WordPress Playground Import';
 
 	/**
+	 * Query argument used to show dashboard import notices.
+	 */
+	private const IMPORT_NOTICE_QUERY_ARG = 'wpcom_playground_import';
+
+	/**
+	 * Query argument used to show dashboard import notice details.
+	 */
+	private const IMPORT_NOTICE_MESSAGE_QUERY_ARG = 'wpcom_playground_import_message';
+
+	/**
 	 * Register WordPress hooks.
 	 *
 	 * @return void
@@ -54,6 +64,7 @@ class Playground_Admin_Page {
 		add_action( 'init', array( __CLASS__, 'register_attachment_taxonomies' ) );
 		add_action( 'admin_menu', array( __CLASS__, 'add_menu_page' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'enqueue_assets' ) );
+		add_action( 'admin_notices', array( __CLASS__, 'render_import_notice' ) );
 		add_action( 'wp_ajax_' . self::UPLOAD_ACTION, array( __CLASS__, 'upload_wp_content_zip' ) );
 		add_action( 'rest_api_init', array( __CLASS__, 'register_rest_routes' ) );
 		add_filter( 'script_loader_tag', array( __CLASS__, 'add_module_type_to_script' ), 10, 3 );
@@ -156,6 +167,61 @@ class Playground_Admin_Page {
 		}
 
 		return array_values( array_unique( $exclusions ) );
+	}
+
+	/**
+	 * Render the dashboard notice after a Playground import redirect.
+	 *
+	 * @return void
+	 */
+	public static function render_import_notice(): void {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only dashboard notice.
+		$status = isset( $_GET[ self::IMPORT_NOTICE_QUERY_ARG ] )
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only dashboard notice.
+			? sanitize_key( wp_unslash( $_GET[ self::IMPORT_NOTICE_QUERY_ARG ] ) )
+			: '';
+
+		if ( ! current_user_can( 'manage_options' ) || '' === $status ) {
+			return;
+		}
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only dashboard notice.
+		$detail = isset( $_GET[ self::IMPORT_NOTICE_MESSAGE_QUERY_ARG ] )
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only dashboard notice.
+			? sanitize_text_field( wp_unslash( $_GET[ self::IMPORT_NOTICE_MESSAGE_QUERY_ARG ] ) )
+			: '';
+
+		switch ( $status ) {
+			case 'success':
+				$type    = 'success';
+				$message = __( 'The Playground import completed successfully.', 'wpcom-playground' );
+				break;
+
+			case 'cancelled':
+				$type    = 'warning';
+				$message = __( 'The Playground import was cancelled.', 'wpcom-playground' );
+				break;
+
+			case 'error':
+				$type    = 'error';
+				$message = $detail
+					? sprintf(
+						/* translators: %s: Import error message. */
+						__( 'The Playground import failed: %s', 'wpcom-playground' ),
+						$detail
+					)
+					: __( 'The Playground import failed.', 'wpcom-playground' );
+				break;
+
+			default:
+				return;
+		}
+
+		printf(
+			'<div class="notice notice-%1$s is-dismissible"><p>%2$s</p></div>',
+			esc_attr( $type ),
+			esc_html( $message )
+		);
 	}
 
 	/**
@@ -482,21 +548,21 @@ class Playground_Admin_Page {
 		}
 
 		$wp_content_export_exclusions = wp_json_encode( self::get_wp_content_export_exclusions() );
+		$wp_content_export_exclusions = false === $wp_content_export_exclusions ? '[]' : $wp_content_export_exclusions;
 		?>
 		<div class="wrap wpcom-playground-admin">
-			<h1><?php echo esc_html__( 'WordPress Playground', 'wpcom-playground' ); ?></h1>
-
 			<div
 				id="wpcom-playground-admin"
 				class="wpcom-playground-admin__app"
 				data-remote-url="<?php echo esc_url( self::PLAYGROUND_REMOTE_URL ); ?>"
 				data-upload-action="<?php echo esc_attr( self::UPLOAD_ACTION ); ?>"
 				data-upload-nonce="<?php echo esc_attr( wp_create_nonce( self::UPLOAD_ACTION ) ); ?>"
-					data-upload-url="<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>"
-					data-import-url="<?php echo esc_url( rest_url( self::REST_NAMESPACE . '/imports' ) ); ?>"
-					data-rest-nonce="<?php echo esc_attr( wp_create_nonce( 'wp_rest' ) ); ?>"
-					data-wp-content-export-exclusions="<?php echo esc_attr( $wp_content_export_exclusions ); ?>"
-				>
+				data-upload-url="<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>"
+				data-import-url="<?php echo esc_url( rest_url( self::REST_NAMESPACE . '/imports' ) ); ?>"
+				data-rest-nonce="<?php echo esc_attr( wp_create_nonce( 'wp_rest' ) ); ?>"
+				data-dashboard-url="<?php echo esc_url( admin_url() ); ?>"
+				data-wp-content-export-exclusions="<?php echo esc_attr( $wp_content_export_exclusions ); ?>"
+			>
 				<div class="wpcom-playground-admin__toolbar">
 					<p id="wpcom-playground-status" class="wpcom-playground-admin__status" role="status">
 						<?php echo esc_html__( 'Starting WordPress Playground...', 'wpcom-playground' ); ?>
@@ -519,6 +585,26 @@ class Playground_Admin_Page {
 					class="wpcom-playground-admin__iframe"
 					title="<?php echo esc_attr__( 'WordPress Playground preview', 'wpcom-playground' ); ?>"
 				></iframe>
+
+				<div
+					id="wpcom-playground-import-loader"
+					class="wpcom-playground-admin__loader"
+					role="dialog"
+					aria-modal="true"
+					aria-labelledby="wpcom-playground-import-loader-title"
+					aria-describedby="wpcom-playground-import-loader-message"
+					hidden
+				>
+					<div class="wpcom-playground-admin__loader-panel">
+						<span class="wpcom-playground-admin__loader-spinner" aria-hidden="true"></span>
+						<h2 id="wpcom-playground-import-loader-title">
+							<?php echo esc_html__( 'Importing Playground archive', 'wpcom-playground' ); ?>
+						</h2>
+						<p id="wpcom-playground-import-loader-message">
+							<?php echo esc_html__( 'Preparing the archive...', 'wpcom-playground' ); ?>
+						</p>
+					</div>
+				</div>
 			</div>
 		</div>
 		<?php

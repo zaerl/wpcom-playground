@@ -7,6 +7,10 @@ const root = document.getElementById( 'wpcom-playground-admin' );
 const iframe = document.getElementById( 'wpcom-playground-iframe' );
 const importButton = document.getElementById( 'wpcom-playground-import' );
 const importResult = document.getElementById( 'wpcom-playground-import-result' );
+const importLoader = document.getElementById( 'wpcom-playground-import-loader' );
+const importLoaderMessage = document.getElementById(
+	'wpcom-playground-import-loader-message'
+);
 const status = document.getElementById( 'wpcom-playground-status' );
 
 const useLocalZipWpContent = true;
@@ -32,6 +36,46 @@ const setStatus = ( message, state ) => {
 		status.textContent = message;
 		status.dataset.state = state;
 	}
+};
+
+const setImportLoaderMessage = ( message ) => {
+	if ( importLoaderMessage ) {
+		importLoaderMessage.textContent = message;
+	}
+};
+
+const showImportLoader = ( message ) => {
+	setImportLoaderMessage( message );
+
+	if ( importLoader ) {
+		importLoader.hidden = false;
+		importLoader.setAttribute( 'aria-busy', 'true' );
+	}
+
+	document.body.classList.add( 'wpcom-playground-admin--importing' );
+};
+
+const getImportRedirectUrl = ( importStatus, message = '' ) => {
+	const url = new URL(
+		root?.dataset.dashboardUrl || '/wp-admin/',
+		window.location.href
+	);
+
+	url.searchParams.set( 'wpcom_playground_import', importStatus );
+
+	if ( message ) {
+		url.searchParams.set(
+			'wpcom_playground_import_message',
+			message.slice( 0, 300 )
+		);
+	}
+
+	return url.toString();
+};
+
+const redirectToDashboard = ( importStatus, message = '' ) => {
+	setImportLoaderMessage( 'Opening WordPress admin...' );
+	window.location.assign( getImportRedirectUrl( importStatus, message ) );
 };
 
 const setImportButtonBusy = ( isBusy ) => {
@@ -88,18 +132,6 @@ const uploadWpContentZip = async ( zipData ) => {
 
 	const attachment = result.data;
 
-	if (
-		! window.confirm(
-			'Are you sure?  Import this Playground .zip into this site?'
-		)
-	) {
-		attachment.importCancelled = true;
-		return attachment;
-	}
-
-	setStatus( 'Importing Playground archive...', 'busy' );
-	attachment.importResult = await importUploadedWpContentZip( attachment );
-
 	return attachment;
 };
 
@@ -135,8 +167,17 @@ const importWpContent = async () => {
 		return;
 	}
 
+	if (
+		! window.confirm(
+			'Are you sure?  Import this Playground .zip into this site?'
+		)
+	) {
+		return;
+	}
+
 	try {
 		setImportButtonBusy( true );
+		showImportLoader( 'Creating Playground wp-content archive...' );
 		setStatus( 'Creating Playground wp-content archive...', 'busy' );
 		setImportResult( null );
 
@@ -154,22 +195,25 @@ const importWpContent = async () => {
 		}
 
 		setStatus( 'Saving Playground archive in the Media Library...', 'busy' );
+		setImportLoaderMessage( 'Saving Playground archive in the Media Library...' );
 		const attachment = await uploadWpContentZip( zipData );
 
 		setImportResult( attachment );
-		setStatus(
-			attachment.importCancelled
-				? 'Playground archive saved. Import cancelled.'
-				: 'Playground archive imported.',
-			'ready'
-		);
+		setStatus( 'Importing Playground archive...', 'busy' );
+		setImportLoaderMessage( 'Importing Playground archive...' );
+		attachment.importResult = await importUploadedWpContentZip( attachment );
+
+		redirectToDashboard( 'success' );
 	} catch ( error ) {
 		window.console.error( error );
-		setStatus(
+		const message =
 			error.message ||
-				'The Playground archive could not be saved or imported.',
+			'The Playground archive could not be saved or imported.';
+		setStatus(
+			message,
 			'error'
 		);
+		redirectToDashboard( 'error', message );
 	} finally {
 		setImportButtonBusy( false );
 	}
