@@ -314,7 +314,7 @@ class Playground_Admin_Page {
 				$source,
 				$destination,
 				array(
-					'skip_clean_up' => true,
+					'skip_clean_up' => false,
 					'dry_run'       => $dry_run,
 					'actions'       => array(),
 					'skip_unpack'   => false,
