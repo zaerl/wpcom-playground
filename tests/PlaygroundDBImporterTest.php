@@ -6,10 +6,14 @@
  */
 
 use Imports\Playground_DB_Importer;
+use Imports\SQL_Importer;
 
 // These tests intentionally use temporary file handles instead of WP_Filesystem.
 // phpcs:disable WordPress.WP.AlternativeFunctions.file_system_operations_fclose
 // phpcs:disable WordPress.WP.AlternativeFunctions.file_system_operations_fwrite
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.NoCaching
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.SchemaChange
 
 /**
  * Class PlaygroundDBImporterTest.
@@ -227,6 +231,41 @@ class PlaygroundDBImporterTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Test generated SQL imports UTF-8 text without mojibake.
+	 */
+	public function test_generate_sql_import_preserves_utf8_text() {
+		global $wpdb;
+
+		$title = 'ń';
+		$this->create_unicode_posts_database( $title );
+
+		$sql = $this->db_importer->generate_sql(
+			$this->tmp_db_path,
+			array(
+				'output_prefix' => 'encoding_',
+			)
+		);
+
+		$this->assertNotWPError( $sql );
+		$this->assertIsString( $sql );
+		$this->assertStringContainsString( 'SET NAMES utf8mb4', $sql );
+		$this->assertStringContainsString( $title, $sql );
+		$this->assertStringNotContainsString( 'SET NAMES latin1', $sql );
+
+		$tmp_sql = $this->generate_tmp_file( $sql );
+
+		$wpdb->query( 'DROP TABLE IF EXISTS `encoding_posts`' );
+		$result = SQL_Importer::import( $tmp_sql['path'] );
+
+		$this->assertNotWPError( $result );
+		$this->assertTrue( $result );
+		$this->assertSame( $title, $wpdb->get_var( 'SELECT post_title FROM `encoding_posts` WHERE ID = 1' ) );
+
+		$wpdb->query( 'DROP TABLE IF EXISTS `encoding_posts`' );
+		fclose( $tmp_sql['resource'] );
+	}
+
+	/**
 	 * Test loading invalid fixture database files.
 	 *
 	 * @dataProvider provide_invalid_fixture_files
@@ -322,11 +361,33 @@ class PlaygroundDBImporterTest extends WP_UnitTestCase {
 
 		if ( $data !== null ) {
 			fwrite( $tmp_file, $data );
+			fflush( $tmp_file );
 		}
 
 		return array(
 			'resource' => $tmp_file,
 			'path'     => $tmp_db_path,
 		);
+	}
+
+	/**
+	 * Create a minimal Playground-style SQLite database with a post title.
+	 *
+	 * @param string $title Post title.
+	 */
+	private function create_unicode_posts_database( string $title ): void {
+		$this->tmp_db_path = wp_tempnam( 'playground-encoding.sqlite' );
+
+		$db = new SQLite3( $this->tmp_db_path );
+		$db->exec( 'CREATE TABLE wp_posts (ID integer PRIMARY KEY AUTOINCREMENT, post_title text NOT NULL)' );
+		$db->exec( 'CREATE TABLE _wp_sqlite_mysql_information_schema_columns (TABLE_NAME text, COLUMN_NAME text, COLUMN_TYPE text)' );
+		$db->exec( "INSERT INTO _wp_sqlite_mysql_information_schema_columns (TABLE_NAME, COLUMN_NAME, COLUMN_TYPE) VALUES ('wp_posts', 'ID', 'bigint(20) unsigned')" );
+		$db->exec( "INSERT INTO _wp_sqlite_mysql_information_schema_columns (TABLE_NAME, COLUMN_NAME, COLUMN_TYPE) VALUES ('wp_posts', 'post_title', 'text')" );
+
+		$statement = $db->prepare( 'INSERT INTO wp_posts (post_title) VALUES (:post_title)' );
+		$statement->bindValue( ':post_title', $title, SQLITE3_TEXT );
+		$statement->execute();
+
+		$db->close();
 	}
 }

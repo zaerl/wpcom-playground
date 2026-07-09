@@ -490,7 +490,7 @@ class SQL_Generator extends Backup_Import_Action {
 		}
 
 		$this->var_assignment( '@saved_cs_client', '@@character_set_client' );
-		$this->var_assignment( 'character_set_client', 'utf8' );
+		$this->var_assignment( 'character_set_client', $this->charset );
 		$this->output( "CREATE TABLE `{$table_name}` (" );
 	}
 

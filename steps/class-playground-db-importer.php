@@ -48,7 +48,7 @@ class Playground_DB_Importer extends Backup_Import_Action {
 	 *     An array of options.
 	 *
 	 *     @type bool   $all_tables     Generate all tables, not only core. Defaults to true.
-	 *     @type string $charset        The charset to use for the generated SQL. Defaults to 'latin1'.
+	 *     @type string $charset        The charset to use for the generated SQL. Defaults to 'utf8mb4'.
 	 *     @type string $collation      The collation to use for the generated SQL. Defaults to null.
 	 *     @type array  $exclude_tables A list of tables to exclude from the generated SQL.
 	 *     @type string $output_file    The output file path. If not set, a temporary file will be used.
@@ -66,7 +66,7 @@ class Playground_DB_Importer extends Backup_Import_Action {
 
 		$defaults = array(
 			'all_tables'     => true,
-			'charset'        => 'latin1',
+			'charset'        => SQL_Generator::DEFAULT_CHARSET,
 			'collation'      => null,
 			'exclude_tables' => array(),
 			'output_file'    => null,

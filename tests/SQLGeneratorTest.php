@@ -224,6 +224,7 @@ class SQLGeneratorTest extends WP_UnitTestCase {
 		$this->generator->end();
 
 		$this->assertStringContainsString( 'SET NAMES ' . SQL_Generator::DEFAULT_CHARSET, $this->generator->get_dump() );
+		$this->assertStringContainsString( 'character_set_client=' . SQL_Generator::DEFAULT_CHARSET, $this->generator->get_dump() );
 		$this->assertStringContainsString( 'CHARSET=' . SQL_Generator::DEFAULT_CHARSET, $this->generator->get_dump() );
 	}
 
