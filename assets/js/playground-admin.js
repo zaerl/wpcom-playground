@@ -38,6 +38,48 @@ const setStatus = ( message, state ) => {
 	}
 };
 
+const getQueryParam = ( param ) => {
+	const url = new URL( window.location.href );
+
+	return url.searchParams.get( param );
+};
+
+const fetchBlueprint = async ( blueprintUrl ) => {
+	const response = await window.fetch( blueprintUrl );
+
+	if ( ! response.ok ) {
+		throw new Error( 'The Playground blueprint could not be loaded.' );
+	}
+
+	return response.json();
+};
+
+const parseBlueprintHash = ( encodedBlueprint ) => {
+	const hashContent = decodeURIComponent( encodedBlueprint );
+
+	try {
+		return JSON.parse( window.atob( hashContent ) );
+	} catch ( error ) {
+		return JSON.parse( hashContent );
+	}
+};
+
+const getBlueprintFromLocation = async () => {
+	const blueprintUrl = getQueryParam( 'blueprint-url' );
+
+	if ( blueprintUrl ) {
+		return fetchBlueprint( blueprintUrl );
+	}
+
+	const encodedBlueprint = window.location.hash.slice( 1 );
+
+	if ( encodedBlueprint ) {
+		return parseBlueprintHash( encodedBlueprint );
+	}
+
+	return undefined;
+};
+
 const setImportLoaderMessage = ( message ) => {
 	if ( importLoaderMessage ) {
 		importLoaderMessage.textContent = message;
@@ -224,56 +266,20 @@ const startPlayground = async () => {
 		return;
 	}
 
-	/*const blueprint = {
-		steps: [
-			{
-				step: "runPHP",
-				code: "<?php require_once '/wordpress/wp-load.php'; $page_args = array( 'post_type' => 'post', 'post_status' => 'publish', 'post_title' => 'Hello WPCOM', 'post_content' => '<p>Hello World</p>', ); wp_insert_post( $page_args, true );",
-			}
-		]
-	}*/
-	const blueprint = JSON.parse( `{
-  "steps": [
-    {
-      "step": "login",
-      "username": "admin"
-    },
-    {
-      "step": "runPHP",
-      "code": "<?php require_once '/wordpress/wp-load.php'; $page_args = array( 'post_type'    => 'post', 'post_status'  => 'publish', 'post_title'   => 'Hello WPCOM', 'post_content' => '<p>Hello World</p>', ); $page_id = wp_insert_post( $page_args, true ); if ( is_wp_error( $page_id ) ) { error_log( 'addPost error: ' . $page_id->get_error_message() ); }",
-      "progress": {
-        "caption": "addPost: Hello WPCOM"
-      }
-    },
-    {
-      "step": "installTheme",
-      "themeData": {
-        "resource": "wordpress.org/themes",
-        "slug": "pendant"
-      },
-      "options": {
-        "activate": true
-      },
-      "progress": {
-        "caption": "Installing theme: pendant"
-      }
-    }
-  ],
-  "$schema": "https://playground.wordpress.net/blueprint-schema.json",
-  "meta": {
-    "title": "Theme (pendant) + addPost",
-    "author": "https://github.com/akirk/playground-step-library"
-  }
-}` );
-
 	try {
-		playgroundClient = await startPlaygroundWeb( {
+		const blueprint = await getBlueprintFromLocation();
+		const playgroundOptions = {
 			iframe,
-			blueprint: blueprint,
 			remoteUrl:
 				root.dataset.remoteUrl ||
 				'https://playground.wordpress.net/remote.html',
-		} );
+		};
+
+		if ( undefined !== blueprint ) {
+			playgroundOptions.blueprint = blueprint;
+		}
+
+		playgroundClient = await startPlaygroundWeb( playgroundOptions );
 
 		root.playgroundClient = playgroundClient;
 		setStatus( 'WordPress Playground is ready.', 'ready' );
