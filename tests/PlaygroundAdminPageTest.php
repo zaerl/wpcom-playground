@@ -95,6 +95,20 @@ class PlaygroundAdminPageTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * The Plugins screen links to the Playground importer.
+	 */
+	public function test_plugin_action_links_include_importer_page(): void {
+		$filter = 'plugin_action_links_' . plugin_basename( WPCOM_PLAYGROUND_PLUGIN_FILE );
+		$links  = apply_filters( $filter, array( 'deactivate' => '<a href="#">Deactivate</a>' ) );
+
+		$this->assertSame(
+			'<a href="' . esc_url( admin_url( 'tools.php?page=wpcom-playground' ) ) . '">Open importer</a>',
+			reset( $links )
+		);
+		$this->assertArrayHasKey( 'deactivate', $links );
+	}
+
+	/**
 	 * Uploading a Playground wp-content ZIP creates a private tagged attachment.
 	 */
 	public function test_upload_wp_content_zip_creates_private_tagged_attachment(): void {

@@ -67,7 +67,27 @@ class Playground_Admin_Page {
 		add_action( 'admin_notices', array( __CLASS__, 'render_import_notice' ) );
 		add_action( 'wp_ajax_' . self::UPLOAD_ACTION, array( __CLASS__, 'upload_wp_content_zip' ) );
 		add_action( 'rest_api_init', array( __CLASS__, 'register_rest_routes' ) );
+		add_filter( 'plugin_action_links_' . plugin_basename( WPCOM_PLAYGROUND_PLUGIN_FILE ), array( __CLASS__, 'add_plugin_action_links' ) );
 		add_filter( 'script_loader_tag', array( __CLASS__, 'add_module_type_to_script' ), 10, 3 );
+	}
+
+	/**
+	 * Add an importer link to the plugin row on the Plugins screen.
+	 *
+	 * @param string[] $links Existing plugin action links.
+	 *
+	 * @return string[] Plugin action links.
+	 */
+	public static function add_plugin_action_links( array $links ): array {
+		$importer_link = sprintf(
+			'<a href="%1$s">%2$s</a>',
+			esc_url( admin_url( 'tools.php?page=' . self::MENU_SLUG ) ),
+			esc_html__( 'Open importer', 'wpcom-playground' )
+		);
+
+		array_unshift( $links, $importer_link );
+
+		return $links;
 	}
 
 	/**
