@@ -14,6 +14,21 @@ use WP_Error;
  */
 class SQL_Importer extends Backup_Import_Action {
 	/**
+	 * Check whether the current site is hosted on WordPress.com Atomic.
+	 *
+	 * @return bool Whether the current site is a WordPress.com Atomic site.
+	 */
+	public static function is_woa_site(): bool {
+		if ( ! class_exists( '\\Automattic\\Jetpack\\Status\\Host' ) ) {
+			return false;
+		}
+
+		$host = new \Automattic\Jetpack\Status\Host();
+
+		return $host->is_woa_site();
+	}
+
+	/**
 	 * Import the dump file.
 	 *
 	 * @param string $sql_file_path The path of the SQL file.
@@ -27,41 +42,41 @@ class SQL_Importer extends Backup_Import_Action {
 			return new WP_Error( 'sql-file-not-exists', __( 'SQL file not exists', 'wpcomsh' ) );
 		}
 
-		if ( ! self::is_mysql_executable_available() ) {
-			return self::import_with_mysqli( $sql_file_path );
+		if ( self::is_woa_site() && defined( 'WP_CLI') && WP_CLI && self::is_mysql_executable_available() ) {
+			$host = DB_HOST;
+			$port = '';
+			if ( preg_match( '/^(.+):(\d+)$/', $host, $m ) ) {
+				$host = $m[1];
+				$port = $m[2];
+			}
+
+			$output  = null;
+			$ret     = null;
+			$command = sprintf(
+				'mysql -u %s%s -h %s%s %s%s < %s',
+				escapeshellarg( DB_USER ),
+				DB_PASSWORD === '' ? '' : ' -p' . escapeshellarg( DB_PASSWORD ),
+				escapeshellarg( $host ),
+				$port === '' ? '' : ' --port=' . escapeshellarg( $port ),
+				escapeshellarg( DB_NAME ),
+				$verbose ? '' : ' 2>&1',
+				escapeshellarg( $sql_file_path )
+			);
+
+			// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.system_calls_exec
+			exec( $command, $output, $ret );
+
+			return $ret === 0 ? true : new WP_Error(
+				'sql-import-failed',
+				__( 'SQL import failed', 'wpcomsh' ),
+				array(
+					'output' => $output,
+					'status' => $ret,
+				)
+			);
 		}
 
-		$host = DB_HOST;
-		$port = '';
-		if ( preg_match( '/^(.+):(\d+)$/', $host, $m ) ) {
-			$host = $m[1];
-			$port = $m[2];
-		}
-
-		$output  = null;
-		$ret     = null;
-		$command = sprintf(
-			'mysql -u %s%s -h %s%s %s%s < %s',
-			escapeshellarg( DB_USER ),
-			DB_PASSWORD === '' ? '' : ' -p' . escapeshellarg( DB_PASSWORD ),
-			escapeshellarg( $host ),
-			$port === '' ? '' : ' --port=' . escapeshellarg( $port ),
-			escapeshellarg( DB_NAME ),
-			$verbose ? '' : ' 2>&1',
-			escapeshellarg( $sql_file_path )
-		);
-
-		// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.system_calls_exec
-		exec( $command, $output, $ret );
-
-		return $ret === 0 ? true : new WP_Error(
-			'sql-import-failed',
-			__( 'SQL import failed', 'wpcomsh' ),
-			array(
-				'output' => $output,
-				'status' => $ret,
-			)
-		);
+		return self::import_with_mysqli( $sql_file_path );
 	}
 
 	/**

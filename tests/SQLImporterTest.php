@@ -78,6 +78,22 @@ class SQLImporterTest extends WP_UnitTestCase {
 	}
 
 	/**
+	 * Check whether the site is hosted on WordPress.com Atomic.
+	 */
+	public function test_is_woa_site() {
+		$this->assertFalse( class_exists( '\\Automattic\\Jetpack\\Status\\Host', false ) );
+		$this->assertFalse( SQL_Importer::is_woa_site() );
+
+		require_once __DIR__ . '/stubs/class-host.php';
+
+		$this->assertFalse( SQL_Importer::is_woa_site() );
+
+		\Automattic\Jetpack\Status\Host::$is_woa_site = true;
+
+		$this->assertTrue( SQL_Importer::is_woa_site() );
+	}
+
+	/**
 	 * Import a SQL file using the mysqli fallback.
 	 */
 	public function test_import_with_mysqli_imports_sql_file() {
