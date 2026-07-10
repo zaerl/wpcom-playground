@@ -267,7 +267,14 @@ const startPlayground = async () => {
 	}
 
 	try {
-		const blueprint = await getBlueprintFromLocation();
+		let blueprint = await getBlueprintFromLocation();
+
+		if(!blueprint) {
+			blueprint = {
+				steps: [{ step: 'login', username: 'admin' }]
+			}
+		}
+
 		const playgroundOptions = {
 			iframe,
 			remoteUrl:
