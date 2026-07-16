@@ -204,6 +204,42 @@ const importUploadedWpContentZip = async ( attachment ) => {
 	return result;
 };
 
+const getImportStepMessage = ( step ) => {
+	const messages = {
+		unpack_file: 'Extracting the Playground archive...',
+		preprocess: 'Preparing the Playground database...',
+		process_files: 'Restoring Playground files...',
+		recreate_database: 'Importing the Playground database...',
+		postprocess_database: 'Finalizing the imported database...',
+		verify_site_integrity: 'Verifying the imported site...',
+		clean_up: 'Cleaning up temporary import files...',
+	};
+
+	return messages[ step ] || 'Continuing the Playground import...';
+};
+
+const runUploadedWpContentImport = async ( attachment ) => {
+	let result = null;
+	let requestCount = 0;
+
+	do {
+		result = await importUploadedWpContentZip( attachment );
+		requestCount += 1;
+
+		if ( ! result.done ) {
+			const message = getImportStepMessage( result.nextStep );
+			setStatus( message, 'busy' );
+			setImportLoaderMessage( message );
+		}
+
+		if ( requestCount > 20 ) {
+			throw new Error( 'The Playground import returned too many steps.' );
+		}
+	} while ( ! result.done );
+
+	return result;
+};
+
 const importWpContent = async () => {
 	if ( ! playgroundClient ) {
 		return;
@@ -243,7 +279,7 @@ const importWpContent = async () => {
 		setImportResult( attachment );
 		setStatus( 'Importing Playground archive...', 'busy' );
 		setImportLoaderMessage( 'Importing Playground archive...' );
-		attachment.importResult = await importUploadedWpContentZip( attachment );
+		attachment.importResult = await runUploadedWpContentImport( attachment );
 
 		redirectToDashboard( 'success' );
 	} catch ( error ) {

@@ -59,6 +59,7 @@ class Backup_Import_Manager {
 		'actions',
 		'bump_stats',
 		'dry_run',
+		'import_id',
 		'skip_clean_up',
 		'skip_unpack',
 	);
@@ -101,6 +102,27 @@ class Backup_Import_Manager {
 	 * @var string
 	 */
 	public static $backup_import_status_option = 'backup_import_status';
+
+	/**
+	 * Option used to prevent concurrent resumable import requests.
+	 *
+	 * @var string
+	 */
+	private static $backup_import_lock_option = 'backup_import_status_lock';
+
+	/**
+	 * Number of seconds after which an abandoned resumable import lock expires.
+	 *
+	 * @var int
+	 */
+	private const IMPORT_LOCK_TTL = 300;
+
+	/**
+	 * Resumable import mode identifier.
+	 *
+	 * @var string
+	 */
+	public const RESUMABLE_MODE = 'resumable';
 
 	/**
 	 * Constructor for the Backup_Import_Manager class.
@@ -255,6 +277,316 @@ class Backup_Import_Manager {
 	}
 
 	/**
+	 * Execute the next step of a resumable backup import.
+	 *
+	 * Unlike import(), this method never executes more than one import step. The
+	 * import identity, destination, and next step are persisted in the backup
+	 * import status option so a later request can continue the same import.
+	 *
+	 * @return array|WP_Error Step result on success, or a WP_Error on failure.
+	 */
+	public function import_next_step() {
+		$lock = $this->acquire_import_lock();
+
+		if ( is_wp_error( $lock ) ) {
+			return $lock;
+		}
+
+		try {
+			$state = $this->get_or_create_resumable_state();
+
+			if ( is_wp_error( $state ) ) {
+				return $state;
+			}
+
+			if ( self::SUCCESS === $state['status'] ) {
+				return $this->get_resumable_step_result( $state, null );
+			}
+
+			if ( self::CANCELLED === $state['status'] ) {
+				return new WP_Error(
+					'backup_import_cancelled',
+					__( 'The backup import has been cancelled.', 'wpcomsh' ),
+					array( 'status' => 409 )
+				);
+			}
+
+			$step = isset( $state['next_step'] ) ? $state['next_step'] : null;
+
+			if ( ! is_string( $step ) || '' === $step ) {
+				return $this->fail_resumable_import(
+					$state,
+					new WP_Error( 'invalid_import_step', __( 'The next backup import step is invalid.', 'wpcomsh' ) )
+				);
+			}
+
+			$state['status']     = $step;
+			$state['phase']      = 'running';
+			$state['updated_at'] = time();
+			$this->replace_status( $state );
+
+			$result = $this->execute_resumable_step( $step );
+
+			if ( is_wp_error( $result ) ) {
+				return $this->fail_resumable_import( $state, $result );
+			}
+
+			$completed_steps   = isset( $state['completed_steps'] ) && is_array( $state['completed_steps'] ) ? $state['completed_steps'] : array();
+			$completed_steps[] = $step;
+			$completed_steps   = array_values( array_unique( $completed_steps ) );
+			$steps             = isset( $state['steps'] ) && is_array( $state['steps'] ) ? $state['steps'] : array();
+			$next_index        = array_search( $step, $steps, true );
+			$next_index        = false === $next_index ? count( $steps ) : $next_index + 1;
+			$next_step         = isset( $steps[ $next_index ] ) ? $steps[ $next_index ] : null;
+
+			$state['completed_steps'] = $completed_steps;
+			$state['next_step']       = $next_step;
+			$state['phase']           = null === $next_step ? 'completed' : 'pending';
+			$state['status']          = null === $next_step ? self::SUCCESS : $next_step;
+			$state['updated_at']      = time();
+			unset( $state['error'], $state['failed_step'] );
+			$this->replace_status( $state );
+
+			if ( null === $next_step && $this->should_bump_stats() ) {
+				$this->bump_import_stats( self::SUCCESS );
+			}
+
+			return $this->get_resumable_step_result( $state, $step );
+		} finally {
+			$this->release_import_lock( $lock );
+		}
+	}
+
+	/**
+	 * Get an existing resumable state or initialize a new one.
+	 *
+	 * @return array|WP_Error Resumable state or an error.
+	 */
+	private function get_or_create_resumable_state() {
+		$state     = self::get_backup_import_status();
+		$import_id = isset( $this->options['import_id'] ) ? (string) $this->options['import_id'] : '';
+
+		if ( is_array( $state ) && isset( $state['mode'] ) && self::RESUMABLE_MODE === $state['mode'] ) {
+			$state_import_id = isset( $state['import_id'] ) ? (string) $state['import_id'] : '';
+
+			if ( $state_import_id === $import_id && '' !== $import_id ) {
+				if ( isset( $state['destination'] ) && trailingslashit( $state['destination'] ) !== $this->destination_path ) {
+					return new WP_Error( 'invalid_import_destination', __( 'The backup import destination does not match.', 'wpcomsh' ) );
+				}
+				if ( isset( $state['source'] ) && $state['source'] !== $this->zip_or_tar_file_path ) {
+					return new WP_Error( 'invalid_import_source', __( 'The backup import source does not match.', 'wpcomsh' ) );
+				}
+
+				return $state;
+			}
+
+			if ( ! in_array( $state['status'], array( self::SUCCESS, self::FAILED, self::CANCELLED ), true ) ) {
+				return new WP_Error( 'import_in_progress', __( 'An import is already running.', 'wpcomsh' ), array( 'status' => 409 ) );
+			}
+		}
+
+		if ( is_array( $state ) && ( ! isset( $state['mode'] ) || self::RESUMABLE_MODE !== $state['mode'] ) ) {
+			$active_statuses = array_merge( array( 'unpack_file' ), $this->importer_actions );
+
+			if ( isset( $state['status'] ) && in_array( $state['status'], $active_statuses, true ) ) {
+				return new WP_Error( 'import_in_progress', __( 'An import is already running.', 'wpcomsh' ), array( 'status' => 409 ) );
+			}
+		}
+
+		if ( '' === $import_id ) {
+			return new WP_Error( 'missing_import_id', __( 'A resumable backup import requires an import ID.', 'wpcomsh' ) );
+		}
+
+		$steps = $this->get_resumable_steps();
+
+		if ( empty( $steps ) ) {
+			return new WP_Error( 'no_import_steps', __( 'The backup import has no steps to execute.', 'wpcomsh' ) );
+		}
+
+		$state = array(
+			'status'          => $steps[0],
+			'mode'            => self::RESUMABLE_MODE,
+			'phase'           => 'pending',
+			'import_id'       => $import_id,
+			'source'          => $this->zip_or_tar_file_path,
+			'destination'     => untrailingslashit( $this->destination_path ),
+			'steps'           => $steps,
+			'completed_steps' => array(),
+			'next_step'       => $steps[0],
+			'started_at'      => time(),
+			'updated_at'      => time(),
+		);
+
+		$this->replace_status( $state );
+
+		return $state;
+	}
+
+	/**
+	 * Get the ordered steps for a resumable import.
+	 *
+	 * @return string[] Import steps.
+	 */
+	private function get_resumable_steps(): array {
+		$steps = isset( $this->options['actions'] ) && count( $this->options['actions'] ) ? $this->options['actions'] : $this->importer_actions;
+
+		if ( ! empty( $this->options['skip_clean_up'] ) ) {
+			$steps = array_values( array_diff( $steps, array( 'clean_up' ) ) );
+		}
+
+		if ( empty( $this->options['skip_unpack'] ) ) {
+			array_unshift( $steps, 'unpack_file' );
+		}
+
+		return array_values( array_unique( $steps ) );
+	}
+
+	/**
+	 * Execute one resumable import step.
+	 *
+	 * @param string $step Step name.
+	 *
+	 * @return bool|WP_Error True on success, or an error.
+	 */
+	private function execute_resumable_step( string $step ) {
+		if ( 'unpack_file' === $step ) {
+			return Utils\FileExtractor::extract( $this->zip_or_tar_file_path, $this->destination_path );
+		}
+
+		$importer_type = self::determine_importer_type( $this->destination_path );
+
+		if ( is_wp_error( $importer_type ) ) {
+			return $importer_type;
+		}
+
+		$importer = self::get_importer( $importer_type, $this->zip_or_tar_file_path, $this->destination_path );
+
+		if ( is_wp_error( $importer ) ) {
+			return $importer;
+		}
+
+		$this->importer_type = $importer_type;
+
+		if ( ! method_exists( $importer, $step ) ) {
+			return new WP_Error( 'invalid_import_step', __( 'The requested backup import step does not exist.', 'wpcomsh' ) );
+		}
+
+		$dry_run = isset( $this->options['dry_run'] ) && $this->options['dry_run'];
+
+		return $importer->$step( $dry_run );
+	}
+
+	/**
+	 * Mark a resumable import as failed.
+	 *
+	 * @param array    $state Current state.
+	 * @param WP_Error $error Import error.
+	 *
+	 * @return WP_Error The original error.
+	 */
+	private function fail_resumable_import( array $state, WP_Error $error ): WP_Error {
+		$state['status']      = self::FAILED;
+		$state['phase']       = 'failed';
+		$state['failed_step'] = isset( $state['next_step'] ) ? $state['next_step'] : null;
+		$state['error']       = array(
+			'code'    => $error->get_error_code(),
+			'message' => $error->get_error_message(),
+		);
+		$state['updated_at']  = time();
+		$this->replace_status( $state );
+
+		if ( $this->should_bump_stats() ) {
+			$this->bump_import_stats( $error->get_error_code() );
+		}
+
+		return $error;
+	}
+
+	/**
+	 * Format a resumable step response.
+	 *
+	 * @param array       $state          Current state.
+	 * @param string|null $completed_step Step completed by this request.
+	 *
+	 * @return array Step response.
+	 */
+	private function get_resumable_step_result( array $state, $completed_step ): array {
+		return array(
+			'success'       => true,
+			'done'          => self::SUCCESS === $state['status'],
+			'status'        => $state['status'],
+			'completedStep' => $completed_step,
+			'nextStep'      => isset( $state['next_step'] ) ? $state['next_step'] : null,
+		);
+	}
+
+	/**
+	 * Whether import statistics should be recorded.
+	 *
+	 * @return bool Whether statistics should be recorded.
+	 */
+	private function should_bump_stats(): bool {
+		return ! isset( $this->options['bump_stats'] ) || true === $this->options['bump_stats'];
+	}
+
+	/**
+	 * Replace the complete backup import status.
+	 *
+	 * @param array $state New status state.
+	 *
+	 * @return void
+	 */
+	private function replace_status( array $state ): void {
+		update_option( self::$backup_import_status_option, $state );
+		self::force_cache_unset();
+	}
+
+	/**
+	 * Acquire the resumable import execution lock.
+	 *
+	 * @return string|WP_Error Lock token or an error.
+	 */
+	private function acquire_import_lock() {
+		$token = function_exists( 'wp_generate_uuid4' ) ? wp_generate_uuid4() : uniqid( 'backup-import-', true );
+		$lock  = get_option( self::$backup_import_lock_option, null );
+
+		if ( is_array( $lock ) && isset( $lock['created_at'] ) && (int) $lock['created_at'] < time() - self::IMPORT_LOCK_TTL ) {
+			delete_option( self::$backup_import_lock_option );
+			$lock = null;
+		}
+
+		$new_lock = array(
+			'token'      => $token,
+			'created_at' => time(),
+		);
+
+		if ( null !== $lock || ! add_option( self::$backup_import_lock_option, $new_lock, '', false ) ) {
+			return new WP_Error(
+				'import_step_in_progress',
+				__( 'A backup import step is already running.', 'wpcomsh' ),
+				array( 'status' => 409 )
+			);
+		}
+
+		return $token;
+	}
+
+	/**
+	 * Release the resumable import execution lock.
+	 *
+	 * @param string $token Lock token.
+	 *
+	 * @return void
+	 */
+	private function release_import_lock( string $token ): void {
+		$lock = get_option( self::$backup_import_lock_option, null );
+
+		if ( is_array( $lock ) && isset( $lock['token'] ) && hash_equals( $lock['token'], $token ) ) {
+			delete_option( self::$backup_import_lock_option );
+		}
+	}
+
+	/**
 	 * Updates the deployment status option.
 	 *
 	 * @param array $content The contents to be merged to the existing option.
@@ -369,11 +701,14 @@ class Backup_Import_Manager {
 			self::delete_backup_import_status();
 		} else {
 			// Otherwise we set the status to cancelled and update the option.
+			$backup_import_status['status'] = self::CANCELLED;
+			if ( isset( $backup_import_status['mode'] ) && self::RESUMABLE_MODE === $backup_import_status['mode'] ) {
+				$backup_import_status['phase']      = 'cancelled';
+				$backup_import_status['updated_at'] = time();
+			}
 			update_option(
 				self::$backup_import_status_option,
-				array(
-					'status' => self::CANCELLED,
-				),
+				$backup_import_status,
 			);
 			self::force_cache_unset();
 		}

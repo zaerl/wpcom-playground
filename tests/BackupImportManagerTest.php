@@ -18,6 +18,68 @@ class BackupImportManagerTest extends WP_UnitTestCase {
 	 */
 	public function tearDown(): void {
 		delete_option( Backup_Import_Manager::$backup_import_status_option );
+		delete_option( 'backup_import_status_lock' );
+
+		parent::tearDown();
+	}
+
+	/**
+	 * A resumable import executes only one step and persists the next step.
+	 */
+	public function test_resumable_import_executes_one_step(): void {
+		$archive_path   = sys_get_temp_dir() . '/playground-resumable-' . wp_generate_password( 8, false ) . '.zip';
+		$destination    = sys_get_temp_dir() . '/playground-resumable-' . wp_generate_password( 8, false );
+		$archive        = new ZipArchive();
+		$archive_opened = $archive->open( $archive_path, ZipArchive::CREATE | ZipArchive::OVERWRITE );
+
+		$this->assertTrue( $archive_opened );
+		$archive->addFromString( 'wp-content/database/.ht.sqlite', 'sqlite-placeholder' );
+		$archive->close();
+
+		$manager = new Backup_Import_Manager(
+			$archive_path,
+			$destination,
+			array(
+				'bump_stats' => false,
+				'dry_run'    => true,
+				'import_id'  => 'test-import',
+			)
+		);
+		$result  = $manager->import_next_step();
+		$status  = Backup_Import_Manager::get_backup_import_status();
+
+		$this->assertIsArray( $result );
+		$this->assertFalse( $result['done'] );
+		$this->assertSame( 'unpack_file', $result['completedStep'] );
+		$this->assertSame( 'preprocess', $result['nextStep'] );
+		$this->assertSame( 'preprocess', $status['status'] );
+		$this->assertSame( 'pending', $status['phase'] );
+		$this->assertSame( $archive_path, $status['source'] );
+		$this->assertSame( array( 'unpack_file' ), $status['completed_steps'] );
+		$this->assertFileExists( $destination . '/wp-content/database/.ht.sqlite' );
+
+		$remaining_steps = array(
+			'preprocess',
+			'process_files',
+			'recreate_database',
+			'postprocess_database',
+			'verify_site_integrity',
+			'clean_up',
+		);
+
+		foreach ( $remaining_steps as $step ) {
+			$result = $manager->import_next_step();
+			$this->assertSame( $step, $result['completedStep'] );
+		}
+
+		$status = Backup_Import_Manager::get_backup_import_status();
+		$this->assertTrue( $result['done'] );
+		$this->assertNull( $result['nextStep'] );
+		$this->assertSame( Backup_Import_Manager::SUCCESS, $status['status'] );
+		$this->assertSame( 'completed', $status['phase'] );
+
+		wp_delete_file( $archive_path );
+		Imports\Playground_Clean_Up::remove_folder( $destination );
 	}
 
 	/**

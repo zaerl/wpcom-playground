@@ -311,13 +311,42 @@ class Playground_Admin_Page {
 	 */
 	public static function start_backup_import( WP_REST_Request $request ) {
 		$attachment_id = absint( $request->get_param( 'attachmentId' ) );
-		$source        = self::get_playground_archive_source_path( $attachment_id );
+		$import_id     = (string) $attachment_id;
+		$import_status = Backup_Import_Manager::get_backup_import_status();
+		$is_resuming   = is_array( $import_status )
+			&& isset( $import_status['mode'], $import_status['import_id'], $import_status['destination'] )
+			&& Backup_Import_Manager::RESUMABLE_MODE === $import_status['mode']
+			&& $import_id === (string) $import_status['import_id'];
+
+		if ( $is_resuming && Backup_Import_Manager::SUCCESS === $import_status['status'] ) {
+			return new WP_REST_Response(
+				array(
+					'attachmentId' => $attachment_id,
+					'done'         => true,
+					'nextStep'     => null,
+					'success'      => true,
+					'status'       => Backup_Import_Manager::SUCCESS,
+				)
+			);
+		}
+
+		$source = $is_resuming && isset( $import_status['source'] )
+			? $import_status['source']
+			: self::get_playground_archive_source_path( $attachment_id );
 
 		if ( is_wp_error( $source ) ) {
 			return $source;
 		}
 
-		$destination = '/tmp/' . wp_generate_password( 12, false );
+		if ( $is_resuming && ( ! is_string( $source ) || ! is_file( $source ) || ! is_readable( $source ) ) ) {
+			return new WP_Error(
+				'missing_playground_archive_file',
+				__( 'The Playground archive file could not be found.', 'wpcom-playground' ),
+				array( 'status' => 404 )
+			);
+		}
+
+		$destination = $is_resuming ? $import_status['destination'] : '/tmp/' . wp_generate_password( 12, false );
 		$dry_run     = false;
 
 		/**
@@ -336,6 +365,7 @@ class Playground_Admin_Page {
 				array(
 					'skip_clean_up' => false,
 					'dry_run'       => $dry_run,
+					'import_id'     => $import_id,
 					'actions'       => array(),
 					'skip_unpack'   => false,
 				)
@@ -345,7 +375,7 @@ class Playground_Admin_Page {
 			$attachment_id
 		);
 
-		if ( ! is_object( $manager ) || ! method_exists( $manager, 'import' ) ) {
+		if ( ! is_object( $manager ) || ( ! method_exists( $manager, 'import_next_step' ) && ! method_exists( $manager, 'import' ) ) ) {
 			return new WP_Error(
 				'invalid_backup_import_manager',
 				__( 'The backup import manager could not be initialized.', 'wpcom-playground' ),
@@ -353,17 +383,29 @@ class Playground_Admin_Page {
 			);
 		}
 
-		$result = $manager->import();
+		// Retain compatibility with integrations that filter in a legacy manager.
+		$result = method_exists( $manager, 'import_next_step' ) ? $manager->import_next_step() : $manager->import();
 		if ( is_wp_error( $result ) ) {
 			return $result;
 		}
 
+		$step_result = is_array( $result )
+			? $result
+			: array(
+				'done'     => true,
+				'nextStep' => null,
+				'success'  => (bool) $result,
+				'status'   => $result ? Backup_Import_Manager::SUCCESS : Backup_Import_Manager::FAILED,
+			);
+
 		return new WP_REST_Response(
-			array(
-				'attachmentId' => $attachment_id,
-				'destination'  => $destination,
-				'source'       => $source,
-				'success'      => (bool) $result,
+			array_merge(
+				$step_result,
+				array(
+					'attachmentId' => $attachment_id,
+					'destination'  => $destination,
+					'source'       => $source,
+				)
 			)
 		);
 	}

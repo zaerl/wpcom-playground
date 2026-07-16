@@ -72,6 +72,8 @@ class PlaygroundAdminPageTest extends WP_UnitTestCase {
 	public function tearDown(): void {
 		remove_filter( 'wp_doing_ajax', '__return_true' );
 		remove_filter( 'wp_die_ajax_handler', array( $this, 'get_wp_die_ajax_handler' ), 1 );
+		delete_option( \WPCom\Playground\Backup_Import_Manager::$backup_import_status_option );
+		delete_option( 'backup_import_status_lock' );
 
 		foreach ( $this->attachment_ids as $attachment_id ) {
 			wp_delete_attachment( $attachment_id, true );
@@ -164,7 +166,7 @@ class PlaygroundAdminPageTest extends WP_UnitTestCase {
 		$manager_args    = array();
 		$manager_options = array();
 		$tracker         = (object) array(
-			'import_called' => false,
+			'import_next_step_called' => false,
 		);
 		$manager_filter  = function ( $manager, $manager_source, $manager_destination, $manager_attachment_id ) use ( &$manager_args, &$manager_options, $tracker ) {
 			$options_property = new ReflectionProperty( $manager, 'options' );
@@ -197,12 +199,18 @@ class PlaygroundAdminPageTest extends WP_UnitTestCase {
 				/**
 				 * Simulate a successful import.
 				 *
-				 * @return bool
+				 * @return array
 				 */
-				public function import(): bool {
-					$this->tracker->import_called = true;
+				public function import_next_step(): array {
+					$this->tracker->import_next_step_called = true;
 
-					return true;
+					return array(
+						'done'          => false,
+						'nextStep'      => 'preprocess',
+						'success'       => true,
+						'status'        => 'preprocess',
+						'completedStep' => 'unpack_file',
+					);
 				}
 			};
 		};
@@ -219,13 +227,14 @@ class PlaygroundAdminPageTest extends WP_UnitTestCase {
 
 		$this->assertSame( 200, $response->get_status() );
 		$this->assertTrue( $data['success'] );
-		$this->assertTrue( $tracker->import_called );
+		$this->assertTrue( $tracker->import_next_step_called );
 		$this->assertSame( $attachment_id, $manager_args['attachment_id'] );
 		$this->assertSame( $source, $manager_args['source'] );
 		$this->assertSame(
 			array(
 				'skip_clean_up' => false,
-				'dry_run'       => true,
+				'dry_run'       => false,
+				'import_id'     => (string) $attachment_id,
 				'actions'       => array(),
 				'skip_unpack'   => false,
 			),
@@ -234,6 +243,63 @@ class PlaygroundAdminPageTest extends WP_UnitTestCase {
 		$this->assertMatchesRegularExpression( '#^/tmp/[A-Za-z0-9]{12}$#', $manager_args['destination'] );
 		$this->assertSame( $manager_args['destination'], $data['destination'] );
 		$this->assertSame( $source, $data['source'] );
+		$this->assertFalse( $data['done'] );
+		$this->assertSame( 'preprocess', $data['nextStep'] );
+	}
+
+	/**
+	 * A resumable import uses its persisted source after the attachment record is replaced.
+	 */
+	public function test_rest_import_endpoint_resumes_without_attachment_record(): void {
+		$user_id = self::factory()->user->create( array( 'role' => 'administrator' ) );
+		wp_set_current_user( $user_id );
+
+		$attachment_id  = 999999;
+		$destination    = '/tmp/playground-resumable-test';
+		$this->tmp_file = $this->create_zip_file();
+
+		update_option(
+			\WPCom\Playground\Backup_Import_Manager::$backup_import_status_option,
+			array(
+				'status'      => 'verify_site_integrity',
+				'mode'        => \WPCom\Playground\Backup_Import_Manager::RESUMABLE_MODE,
+				'import_id'   => (string) $attachment_id,
+				'source'      => $this->tmp_file,
+				'destination' => $destination,
+			)
+		);
+
+		$manager_filter = function ( $manager, $source, $manager_destination ) use ( $destination ) {
+			$this->assertSame( $this->tmp_file, $source );
+			$this->assertSame( $destination, $manager_destination );
+
+			return new class() {
+				/**
+				 * Simulate a successful resumable step.
+				 *
+				 * @return array
+				 */
+				public function import_next_step(): array {
+					return array(
+						'done'     => false,
+						'nextStep' => 'clean_up',
+						'success'  => true,
+						'status'   => 'clean_up',
+					);
+				}
+			};
+		};
+
+		add_filter( 'wpcom_playground_backup_import_manager', $manager_filter, 10, 3 );
+
+		$request = new WP_REST_Request( 'POST', '/wpcom-playground/v1/imports' );
+		$request->set_param( 'attachmentId', $attachment_id );
+		$response = rest_do_request( $request );
+
+		remove_filter( 'wpcom_playground_backup_import_manager', $manager_filter, 10 );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertTrue( $response->get_data()['success'] );
 	}
 
 	/**
