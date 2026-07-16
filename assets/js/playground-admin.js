@@ -65,17 +65,17 @@ const parseBlueprintHash = ( encodedBlueprint ) => {
 };
 
 const getBlueprintFromLocation = async () => {
-	const blueprintUrl = getQueryParam( 'blueprint-url' );
+	const blueprintUrl = getQueryParam( 'wpcom-blueprint-url' );
 
 	if ( blueprintUrl ) {
 		return fetchBlueprint( blueprintUrl );
 	}
 
-	const encodedBlueprint = window.location.hash.slice( 1 );
+	/*const encodedBlueprint = window.location.hash.slice( 1 );
 
 	if ( encodedBlueprint ) {
 		return parseBlueprintHash( encodedBlueprint );
-	}
+	}*/
 
 	return undefined;
 };

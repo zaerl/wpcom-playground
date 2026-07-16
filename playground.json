@@ -1,0 +1,26 @@
+{
+  "landingPage": "/wp-admin/admin.php?page=wpcom-playground",
+  "steps": [
+    {
+      "step": "login",
+      "username": "admin",
+      "password": "password"
+    },
+    {
+      "step": "installPlugin",
+      "pluginData": {
+        "resource": "git:directory",
+        "url": "https://github.com/zaerl/wpcom-playground",
+        "ref": "HEAD"
+      },
+      "options": {
+        "activate": true,
+        "targetFolderName": "wpcom-playground"
+      },
+      "progress": {
+        "caption": "Installing plugin from GitHub: zaerl/wpcom-playground"
+      }
+    }
+  ],
+  "$schema": "https://playground.wordpress.net/blueprint-schema.json"
+}
