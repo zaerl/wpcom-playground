@@ -646,6 +646,7 @@ class Playground_Admin_Page {
 					id="wpcom-playground-iframe"
 					class="wpcom-playground-admin__iframe"
 					title="<?php echo esc_attr__( 'WordPress Playground preview', 'wpcom-playground' ); ?>"
+					referrerpolicy="no-referrer"
 				></iframe>
 
 				<div
