@@ -354,10 +354,21 @@ const startPlayground = async () => {
 
 		const playgroundOptions = {
 			iframe,
+			mounts: [
+				{
+					device: {
+						path: `/sites/site-${ playgroundScope }`,
+						type: 'opfs',
+					},
+					initialSyncDirection: 'opfs-to-memfs',
+					mountpoint: '/wordpress',
+				},
+			],
 			remoteUrl:
 				root.dataset.remoteUrl ||
 				'https://pr4095.pg.ashfame.com/remote.html',
 			scope: playgroundScope,
+			wordpressInstallMode: 'install-from-existing-files-if-needed',
 		};
 
 		if ( undefined !== blueprint ) {
