@@ -23,7 +23,7 @@ class Playground_Admin_Page {
 	/**
 	 * Playground remote iframe URL.
 	 */
-	private const PLAYGROUND_REMOTE_URL = 'https://playground.wordpress.net/remote.html';
+	private const PLAYGROUND_REMOTE_URL = 'https://pr4095.pg.ashfame.com/remote.html';
 
 	/**
 	 * AJAX action for importing a Playground wp-content archive.
