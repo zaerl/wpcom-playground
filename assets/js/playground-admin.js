@@ -354,21 +354,10 @@ const startPlayground = async () => {
 
 		const playgroundOptions = {
 			iframe,
-			mounts: [
-				{
-					device: {
-						path: `/sites/site-${ playgroundScope }`,
-						type: 'opfs',
-					},
-					initialSyncDirection: 'opfs-to-memfs',
-					mountpoint: '/wordpress',
-				},
-			],
 			remoteUrl:
 				root.dataset.remoteUrl ||
 				'https://pr4095.pg.ashfame.com/remote.html',
 			scope: playgroundScope,
-			wordpressInstallMode: 'install-from-existing-files-if-needed',
 		};
 
 		if ( undefined !== blueprint ) {
@@ -376,6 +365,14 @@ const startPlayground = async () => {
 		}
 
 		playgroundClient = await startPlaygroundWeb( playgroundOptions );
+		await playgroundClient.mountOpfs( {
+			device: {
+				path: `/sites/site-${ playgroundScope }`,
+				type: 'opfs',
+			},
+			initialSyncDirection: 'memfs-to-opfs',
+			mountpoint: '/wordpress',
+		} );
 
 		root.playgroundClient = playgroundClient;
 		setStatus( 'WordPress Playground is ready.', 'ready' );
