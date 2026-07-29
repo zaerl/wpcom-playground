@@ -259,6 +259,7 @@ const runUploadedWpContentImport = async ( attachment ) => {
 const exportSavedSiteAsZip = async () => {
 	const apiIframe = document.createElement( 'iframe' );
 	apiIframe.hidden = true;
+	apiIframe.referrerPolicy = 'no-referrer';
 	apiIframe.sandbox.add( 'allow-scripts' );
 	apiIframe.sandbox.add( 'allow-same-origin' );
 	document.body.appendChild( apiIframe );
@@ -365,6 +366,32 @@ const startPlayground = async () => {
 		}
 
 		playgroundClient = await startPlaygroundWeb( playgroundOptions );
+		await playgroundClient.writeFile(
+			'/wordpress/wp-runtime.json',
+			JSON.stringify(
+				{
+					id: playgroundScope,
+					name: 'WordPress.com Playground import source',
+					originalBlueprint: blueprint,
+					originalBlueprintSource: {
+						type: 'none',
+					},
+					persistence: 'explicit',
+					runtimeConfiguration: {
+						constants: {},
+						extraLibraries: [],
+						intl: false,
+						networking: true,
+						phpVersion: '8.3',
+						wpVersion: 'latest',
+					},
+					slug: playgroundScope,
+					storage: 'opfs',
+				},
+				null,
+				2
+			)
+		);
 		await playgroundClient.mountOpfs( {
 			device: {
 				path: `/sites/site-${ playgroundScope }`,
