@@ -20,10 +20,10 @@ Start the WordPress environment before running WordPress-aware commands:
 wp-env start
 ```
 
-Install Composer dependencies inside the wp-env test container:
+Install Composer dependencies inside the wp-env CLI container:
 
 ```sh
-wp-env run tests-cli composer install --working-dir=/var/www/html/wp-content/plugins/wpcom-playground --no-interaction
+wp-env run cli composer install --working-dir=/var/www/html/wp-content/plugins/wpcom-playground --no-interaction
 ```
 
 ## Verification Commands
@@ -31,13 +31,13 @@ wp-env run tests-cli composer install --working-dir=/var/www/html/wp-content/plu
 Run the imported WordPress PHPUnit suite:
 
 ```sh
-wp-env run tests-cli composer test --working-dir=/var/www/html/wp-content/plugins/wpcom-playground
+wp-env run cli composer test --working-dir=/var/www/html/wp-content/plugins/wpcom-playground
 ```
 
 Run PHP coding standards checks:
 
 ```sh
-wp-env run tests-cli composer lint:php --working-dir=/var/www/html/wp-content/plugins/wpcom-playground
+wp-env run cli composer lint:php --working-dir=/var/www/html/wp-content/plugins/wpcom-playground
 ```
 
 Run a syntax check for all non-vendor PHP files:
