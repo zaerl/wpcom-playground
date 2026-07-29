@@ -2,7 +2,7 @@
 	"name": "wpcom-playground",
 	"private": true,
 	"scripts": {
-		"start": "wp-env start"
+		"start": "wp-env start && wp-env run cli wp plugin activate wpcom-playground"
 	},
 	"devDependencies": {
 		"@wordpress/env": "11.12.0"
