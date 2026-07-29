@@ -1,7 +1,9 @@
 import {
+	startPlaygroundAPI,
 	startPlaygroundWeb,
-	zipWpContent as cdnZipWpContent,
-} from 'https://playground.wordpress.net/client/index.js';
+} from 'https://pr4095.pg.ashfame.com/client/index.js';
+
+const playgroundScope = 'wpcom-playground-import-source';
 
 const root = document.getElementById( 'wpcom-playground-admin' );
 const iframe = document.getElementById( 'wpcom-playground-iframe' );
@@ -12,8 +14,6 @@ const importLoaderMessage = document.getElementById(
 	'wpcom-playground-import-loader-message'
 );
 const status = document.getElementById( 'wpcom-playground-status' );
-
-const useLocalZipWpContent = true;
 
 const getWpContentExportExclusions = () => {
 	try {
@@ -28,6 +28,22 @@ const getWpContentExportExclusions = () => {
 };
 
 const wpContentFilesExcludedFromExport = getWpContentExportExclusions();
+
+const getWpContentExportExcludePatterns = () => [
+	'/*',
+	'!/wp-content/',
+	'!/wp-content/**',
+	'/wp-content/db.php',
+	'/wp-content/mu-plugins/',
+	...wpContentFilesExcludedFromExport
+		.filter( ( path ) => 'string' === typeof path && '' !== path )
+		.map( ( path ) =>
+			`/wp-content/${ path
+				.replace( /\\/g, '/' )
+				.replace( /^\/+/, '' )
+				.replace( /^wp-content\//, '' ) }`
+		),
+];
 
 let playgroundClient = null;
 
@@ -240,6 +256,43 @@ const runUploadedWpContentImport = async ( attachment ) => {
 	return result;
 };
 
+const exportSavedSiteAsZip = async () => {
+	const apiIframe = document.createElement( 'iframe' );
+	apiIframe.hidden = true;
+	apiIframe.referrerPolicy = 'no-referrer';
+	apiIframe.sandbox.add( 'allow-scripts' );
+	apiIframe.sandbox.add( 'allow-same-origin' );
+	document.body.appendChild( apiIframe );
+
+	try {
+		const remoteUrl = new URL(
+			root.dataset.remoteUrl ||
+				'https://pr4095.pg.ashfame.com/remote.html'
+		);
+		const apiUrl = new URL( '/api.html', remoteUrl.origin ).toString();
+		const playgroundAPI = await startPlaygroundAPI( {
+			iframe: apiIframe,
+			apiUrl,
+		} );
+		const zipData = await playgroundAPI.exportSavedSiteAsZip(
+			playgroundScope,
+			{
+				excludePatterns: getWpContentExportExcludePatterns(),
+			}
+		);
+
+		if ( ! zipData ) {
+			throw new Error(
+				`No exportable saved Playground found for ${ playgroundScope }.`
+			);
+		}
+
+		return zipData;
+	} finally {
+		apiIframe.remove();
+	}
+};
+
 const importWpContent = async () => {
 	if ( ! playgroundClient ) {
 		return;
@@ -259,18 +312,7 @@ const importWpContent = async () => {
 		setStatus( 'Creating Playground wp-content archive...', 'busy' );
 		setImportResult( null );
 
-		let zipData;
-		if ( useLocalZipWpContent ) {
-			const { zipWpContent: localZipWpContent } = await import(
-				'./zip-wp-content.js'
-			);
-			zipData = await localZipWpContent(
-				playgroundClient,
-				wpContentFilesExcludedFromExport
-			);
-		} else {
-			zipData = await cdnZipWpContent( playgroundClient );
-		}
+		const zipData = await exportSavedSiteAsZip();
 
 		setStatus( 'Saving Playground archive in the Media Library...', 'busy' );
 		setImportLoaderMessage( 'Saving Playground archive in the Media Library...' );
@@ -315,7 +357,8 @@ const startPlayground = async () => {
 			iframe,
 			remoteUrl:
 				root.dataset.remoteUrl ||
-				'https://playground.wordpress.net/remote.html',
+				'https://pr4095.pg.ashfame.com/remote.html',
+			scope: playgroundScope,
 		};
 
 		if ( undefined !== blueprint ) {
@@ -323,6 +366,40 @@ const startPlayground = async () => {
 		}
 
 		playgroundClient = await startPlaygroundWeb( playgroundOptions );
+		await playgroundClient.writeFile(
+			'/wordpress/wp-runtime.json',
+			JSON.stringify(
+				{
+					id: playgroundScope,
+					name: 'WordPress.com Playground import source',
+					originalBlueprint: blueprint,
+					originalBlueprintSource: {
+						type: 'none',
+					},
+					persistence: 'explicit',
+					runtimeConfiguration: {
+						constants: {},
+						extraLibraries: [],
+						intl: false,
+						networking: true,
+						phpVersion: '8.3',
+						wpVersion: 'latest',
+					},
+					slug: playgroundScope,
+					storage: 'opfs',
+				},
+				null,
+				2
+			)
+		);
+		await playgroundClient.mountOpfs( {
+			device: {
+				path: `/sites/site-${ playgroundScope }`,
+				type: 'opfs',
+			},
+			initialSyncDirection: 'memfs-to-opfs',
+			mountpoint: '/wordpress',
+		} );
 
 		root.playgroundClient = playgroundClient;
 		setStatus( 'WordPress Playground is ready.', 'ready' );
