@@ -4,4 +4,5 @@ Thumbs.db
 
 # Test artifacts
 .phpunit.cache/
+node_modules/
 vendor/

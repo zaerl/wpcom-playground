@@ -1,0 +1,10 @@
+{
+	"name": "wpcom-playground",
+	"private": true,
+	"scripts": {
+		"start": "wp-env start"
+	},
+	"devDependencies": {
+		"@wordpress/env": "11.12.0"
+	}
+}
