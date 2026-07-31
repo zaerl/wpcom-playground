@@ -1,7 +1,7 @@
 import {
 	startPlaygroundAPI,
 	startPlaygroundWeb,
-} from 'https://pr4095.pg.ashfame.com/client/index.js';
+} from 'https://pr4220.pg.ashfame.com/client/index.js';
 
 const playgroundScope = 'wpcom-playground-import-source';
 
@@ -267,7 +267,7 @@ const exportSavedSiteAsZip = async () => {
 	try {
 		const remoteUrl = new URL(
 			root.dataset.remoteUrl ||
-				'https://pr4095.pg.ashfame.com/remote.html'
+				'https://pr4220.pg.ashfame.com/remote.html'
 		);
 		const apiUrl = new URL( '/api.html', remoteUrl.origin ).toString();
 		const playgroundAPI = await startPlaygroundAPI( {
@@ -357,7 +357,7 @@ const startPlayground = async () => {
 			iframe,
 			remoteUrl:
 				root.dataset.remoteUrl ||
-				'https://pr4095.pg.ashfame.com/remote.html',
+				'https://pr4220.pg.ashfame.com/remote.html',
 			scope: playgroundScope,
 		};
 
